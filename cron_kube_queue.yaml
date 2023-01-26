@@ -1,0 +1,19 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hello
+spec:
+  schedule: "* * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: k8s
+            image: alpine/k8s:1.26.1
+            imagePullPolicy: IfNotPresent
+            command:
+            - /bin/sh
+            - -c
+            - kubectl get job $(kubectl get jobs -o=jsonpath='{.items[?(@.status.active==1)].metadata.name}') | filter > /tmp/configmap.yaml && kubectl create configmap jobman-jobs-config --namespace=zz-shared --from-file=/tmp/configmap.yaml
+          restartPolicy: OnFailure

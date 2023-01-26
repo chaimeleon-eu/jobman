@@ -1,0 +1,20 @@
+{
+    "sharedNamespace": "zz-shared",
+    "sharedConfigmap": "jobman-jobs-config",
+    "job": {
+        "defaultContainer": "default",
+        "gpuResName": "nvidia.com/gpu",
+        "affinity": {
+            "cpu": "NODE_WITH_CPUS_NO_GPU",
+            "gpu": "NODE WITH GPU"
+        },
+        "requests": {
+            "cpu": 1,
+            "memory": 1000
+        },
+        "limits": {
+            "cpu": 1,
+            "memory": 1000
+        }
+    }
+}
