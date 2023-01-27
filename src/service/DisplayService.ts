@@ -9,8 +9,8 @@ import KubeManager from "./KubeManager.js";
 export default class DisplayService {
     protected km: KubeManager;
 
-    constructor(settings: Settings, ccp: string | null) {
-        this.km = new KubeManager(settings, ccp);
+    constructor(settings: Settings) {
+        this.km = new KubeManager(settings);
     }
 
     public submit(props: SubmitProps): void {

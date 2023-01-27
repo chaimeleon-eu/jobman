@@ -1,26 +1,45 @@
-export class Affinity {
-
-    cpu: string = "";
-    gpu: string = "";
+export enum KubeConfigType {
+    default = "default", 
+    cluster = "cluster"
 }
 
-export class LimitsRequests {
+export interface Affinity {
 
-    cpu: number = 0;
-    memory: number = 0;
+    cpu: string;
+    gpu: string;
 }
 
-export class Job {
+export interface LimitsRequests {
 
-    defaultContainer: string = "";
-    gpuResName: string = "";
+    cpu: number;
+    memory: number;
+}
+
+export interface Job {
+
+    defaultImage: string;
+    gpuResName: string;
     affinity: Affinity;
     limits: LimitsRequests;
     requests: LimitsRequests;
 }
 
-export class Settings {
+export interface KubeConfigLocal {
 
+    type: KubeConfigType;
+}
+
+export interface HarborConfig {
+    url: string;
+    project: string;
+
+}
+
+export interface Settings {
+    sharedNamespace: string;
+    sharedConfigmap: string;
     job: Job;
+    kubeConfig: KubeConfigLocal;
+    harbor: HarborConfig;
 
 }

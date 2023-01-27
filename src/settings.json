@@ -2,7 +2,7 @@
     "sharedNamespace": "zz-shared",
     "sharedConfigmap": "jobman-jobs-config",
     "job": {
-        "defaultContainer": "default",
+        "defaultImage": "default",
         "gpuResName": "nvidia.com/gpu",
         "affinity": {
             "cpu": "NODE_WITH_CPUS_NO_GPU",
@@ -16,5 +16,12 @@
             "cpu": 1,
             "memory": 1000
         }
+    },
+    "kubeConfig": {
+        "type": "default"
+    },
+    "harbor": {
+        "url": "https://harbor.chaimeleon-eu.i3m.upv.es/harbor",
+        "project": "chaimeleon-library-batch"
     }
 }

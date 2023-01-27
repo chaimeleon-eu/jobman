@@ -3,12 +3,12 @@
     "exclude": ["node_modules"],
         "$schema": "https://json.schemastore.org/tsconfig",
         "extends": "@tsconfig/node18-strictest-esm/tsconfig.json",
-        "display": "Node 18 + ESM + Strictest",
+        "display": "Node 18 + ESM + Strict(est)",
         "compilerOptions": {
           "lib": [
             "es2022"
           ],
-          "module": "esnext",
+          "module": "ESNext",
           "target": "es2022",
           "strict": true,
           "esModuleInterop": true,

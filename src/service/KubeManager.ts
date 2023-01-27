@@ -1,14 +1,19 @@
 import { KubeConfig, BatchV1Api, V1Job, V1JobStatus, V1DeleteOptions, Watch } from '@kubernetes/client-node';
 import { v4 as uuidv4 }  from "uuid";
 import log from "loglevel";
+import fetch, { Response } from "node-fetch";
 
 import { IJobInfo, EJobStatus } from '../model/IJobInfo.js';
 import JobInfo from '../model/JobInfo.js';
 import ParameterException from '../model/exception/ParameterException.js';
 import SubmitProps from '../model/SubmitProps.js';
-import { Settings } from '../model/Settings.js';
+import { KubeConfigLocal, KubeConfigType, Settings } from '../model/Settings.js';
 import NotImplementedException from '../model/exception/NotImplementedException.js';
 import KubeOpReturn from '../model/KubeOpReturn.js';
+import UnhandledValueException from '../model/exception/UnhandledValueException.js';
+import ImageDetails from '../model/ImageDetails.js';
+import HarborRepository from '../model/HarborRepository.js';
+import { HarborRespositoryArtifact } from '../model/HarborRespositoryArtifact.js';
 
 
 
@@ -18,19 +23,19 @@ export default class KubeManager {
     protected settings: Settings;
     protected watch: Watch;
 
-    public constructor(settings: Settings, clusterConfigPath: string | null) {
+    public constructor(settings: Settings) {
         this.settings = settings;
-        this.clusterConfig = this.loadKubeConfig(clusterConfigPath);
+        this.clusterConfig = this.loadKubeConfig(settings.kubeConfig);
         this.k8sApi = this.clusterConfig.makeApiClient(BatchV1Api);
         this.watch = new Watch(this.clusterConfig);
     }
 
     public async submit(props: SubmitProps): Promise<KubeOpReturn<undefined>> {
-        if (!props.container) {
+        if (!props.image) {
             throw new ParameterException("Please specify a container.");
         }
         const jn: string = props.jobName ?? `job_${uuidv4()}`;
-        const cont = props.container ?? this.settings.job.defaultContainer;
+        const cont = props.image ?? this.settings.job.defaultImage;
         let job: V1Job = new V1Job();
         job.metadata = {
             name: jn,
@@ -94,6 +99,35 @@ export default class KubeManager {
             status: this.getStatus(e.status),
             dateLaunched: e.metadata?.creationTimestamp,
             position: 0}));
+    }
+
+    public async images(): Promise<KubeOpReturn<ImageDetails[]>> {
+        const reposUrl: string = `${this.settings.harbor.url}/api/v2.0/projects/${this.settings.harbor.project}/repositories`;
+        const response: Response = await fetch(reposUrl);
+        const result: ImageDetails[] = [];
+        if (response.ok) {
+            const prjRepos: HarborRepository[] = await response.json() as HarborRepository[];
+            for (const repo of prjRepos) {
+                const name: string = repo.name;
+                const tags: string[] = [];
+                result.push({name, tags})
+
+                const artsUrl: string = `${reposUrl}/api/v2.0/projects/${this.settings.harbor.project}/repositories/${name}/artifacts`;
+                const rArtifacts: Response = await fetch(artsUrl);
+                if (rArtifacts.ok) {
+                    const arts: HarborRespositoryArtifact[] = await rArtifacts.json() as HarborRespositoryArtifact[];
+                    for (const art of arts ) {
+                        tags.push(...art.tags.map(t => t.name));
+                    }
+                } else {
+                    console.warn(`Unable to load artifacts from ${artsUrl}`);
+                }
+            }
+            return new KubeOpReturn(response.status, response.statusText, result);
+        } else {
+            console.error(`Unable to load repositories from ${reposUrl}`);
+        }
+        return new KubeOpReturn(response.status, response.statusText, result);
     }
 
     public async details(jobName: string | undefined = undefined): Promise<KubeOpReturn<IJobInfo[]>> {
@@ -176,14 +210,17 @@ export default class KubeManager {
         return EJobStatus.Unknown;
     }
 
-    protected loadKubeConfig(clusterConfigPath: string | null | undefined): KubeConfig {
-        let clusterConfig = new KubeConfig();
-        if (clusterConfigPath) {
-            clusterConfig.loadFromFile(clusterConfigPath);
+    protected loadKubeConfig(cfg: KubeConfigLocal): KubeConfig {
+        let clusterConfigTmp = new KubeConfig();
+        if (cfg.type === KubeConfigType.default) {
+            clusterConfigTmp.loadFromDefault();
+        } else if (cfg.type === KubeConfigType.cluster) {
+            clusterConfigTmp.loadFromCluster();
         } else {
-            clusterConfig.loadFromCluster();
+            throw new UnhandledValueException(`Type '${cfg.type}' not handled. Please use one of the following: 
+                ${Object.keys(KubeConfigType).filter(value => typeof value === 'string').join(", ")}`)
         }
-        return clusterConfig;
+        return clusterConfigTmp;
     }
 
     public getUsername() : string {
