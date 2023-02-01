@@ -1,7 +1,7 @@
 import { KubeConfig, BatchV1Api, V1Job, V1JobStatus, V1DeleteOptions, Watch } from '@kubernetes/client-node';
 import { v4 as uuidv4 }  from "uuid";
 import log from "loglevel";
-import fetch, { Response } from "node-fetch";
+import fetch, { RequestInit, Response } from "node-fetch";
 
 import { IJobInfo, EJobStatus } from '../model/IJobInfo.js';
 import JobInfo from '../model/JobInfo.js';
@@ -25,6 +25,7 @@ export default class KubeManager {
 
     public constructor(settings: Settings) {
         this.settings = settings;
+        console.log(settings);
         this.clusterConfig = this.loadKubeConfig(settings.kubeConfig);
         this.k8sApi = this.clusterConfig.makeApiClient(BatchV1Api);
         this.watch = new Watch(this.clusterConfig);
@@ -103,17 +104,19 @@ export default class KubeManager {
 
     public async images(): Promise<KubeOpReturn<ImageDetails[]>> {
         const reposUrl: string = `${this.settings.harbor.url}/api/v2.0/projects/${this.settings.harbor.project}/repositories`;
-        const response: Response = await fetch(reposUrl);
+        console.log(`Getting repos from ${reposUrl}`);
+        const response: Response = await this.fetchCustom(reposUrl);
         const result: ImageDetails[] = [];
         if (response.ok) {
             const prjRepos: HarborRepository[] = await response.json() as HarborRepository[];
             for (const repo of prjRepos) {
-                const name: string = repo.name;
+                // Get repo name, remove project name 
+                const name: string = repo.name.substring(repo.name.indexOf("/") + 1, repo.name.length);
                 const tags: string[] = [];
                 result.push({name, tags})
-
-                const artsUrl: string = `${reposUrl}/api/v2.0/projects/${this.settings.harbor.project}/repositories/${name}/artifacts`;
-                const rArtifacts: Response = await fetch(artsUrl);
+                
+                const artsUrl: string = `${reposUrl}/${name}/artifacts`;
+                const rArtifacts: Response = await this.fetchCustom(artsUrl);
                 if (rArtifacts.ok) {
                     const arts: HarborRespositoryArtifact[] = await rArtifacts.json() as HarborRespositoryArtifact[];
                     for (const art of arts ) {
@@ -234,5 +237,9 @@ export default class KubeManager {
 
     protected getNamespace(): string {
         return this.getUsername();
+    }
+
+    protected fetchCustom(url: string, init?: RequestInit): Promise<Response> {
+        return fetch(url, init);
     }
 }

@@ -1,6 +1,7 @@
 export enum KubeConfigType {
     default = "default", 
-    cluster = "cluster"
+    cluster = "cluster",
+    file = "file"
 }
 
 export interface Affinity {
@@ -27,6 +28,7 @@ export interface Job {
 export interface KubeConfigLocal {
 
     type: KubeConfigType;
+    file?: string | null | undefined;
 }
 
 export interface HarborConfig {

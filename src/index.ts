@@ -4,15 +4,15 @@ import { parseArgs } from 'node:util';
 import fs from 'fs';
 import { exit } from "node:process";
 
-import * as settings from "./settings.json";
+import settings from "./settings.json" assert { type: "json" };
 import DisplayService from "./service/DisplayService.js";
-import ParameterException from './model/exception/ParameterException';
-import { Settings } from './model/Settings';
+import ParameterException from './model/exception/ParameterException.js';
+import { Settings } from './model/Settings.js';
 
 const ARGS_PARSING_ERROR_MSG: string = "Error parsing the arguments, please check the help by passing -h/--help as first arg of the application.";
 
 export enum Cmd {
-    Submit, List, Details, Log, Delete
+    Images, Submit, List, Details, Log, Delete
 }
 
 export class Main {
@@ -87,9 +87,10 @@ export class Main {
                 }
                 break;
             case "list": this.execCmd(Cmd.List, sp, null); break;
+            case "images":  this.execCmd(Cmd.Images, sp, null); break;
             case "details": 
                 const { values: dv } = parseArgs({ args: cmdArgs, options: {
-                    "job-name": { type: "string", short: "-j" }
+                    "job-name": { type: "string", short: "j" }
                 }});
                 this.execCmd(Cmd.Details, sp, { jobName: dv["job-name"] }); 
                 break;
@@ -120,8 +121,9 @@ export class Main {
         if (sp) {
             s = JSON.parse(fs.readFileSync(sp, 'utf-8'))
         }
-        let ds: DisplayService = new DisplayService(s);;
+        let ds: DisplayService = new DisplayService(s);
         switch (cmd) {
+            case Cmd.Images: ds.images(); break;
             case Cmd.Submit: ds.submit(payload); break;
             case Cmd.List: ds.list(); break;
             case Cmd.Details: ds.details(payload); break;

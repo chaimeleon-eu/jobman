@@ -18,10 +18,11 @@
         }
     },
     "kubeConfig": {
-        "type": "default"
+        "type": "default",
+        "file": null
     },
     "harbor": {
-        "url": "https://harbor.chaimeleon-eu.i3m.upv.es/harbor",
+        "url": "https://harbor.chaimeleon-eu.i3m.upv.es",
         "project": "chaimeleon-library-batch"
     }
 }

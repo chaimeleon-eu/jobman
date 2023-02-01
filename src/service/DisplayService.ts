@@ -1,6 +1,12 @@
 import log from "loglevel";
-import KubeOpReturn from "../model/KubeOpReturn.js";
+import { createRequire } from "node:module";
+import util  from 'node:util';
+import ImageDetails from "../model/ImageDetails.js";
+//import ImageDetails from "../model/ImageDetails.js";
+const require = createRequire(import.meta.url);
+const { Table } = require('console-table-printer');
 
+import KubeOpReturn from "../model/KubeOpReturn.js";
 import { Settings } from "../model/Settings.js";
 import SubmitProps from "../model/SubmitProps.js";
 import KubeManager from "./KubeManager.js";
@@ -11,6 +17,34 @@ export default class DisplayService {
 
     constructor(settings: Settings) {
         this.km = new KubeManager(settings);
+        util.inspect.defaultOptions.maxArrayLength = null;
+    }
+
+    public images(): void {
+        this.km.images().then(r => {
+            if (r.payload) {
+                //printTable(r.payload as ImageDetails[]);
+                const t = new Table({
+                    enabledColumns: ["name", "Tags List"],
+                    columns: [
+                      {
+                        name: "name",
+                        title: "Image Name"
+                      }
+                    ],
+                    computedColumns:[
+                        {
+                            name: "Tags List",
+                            function: (row: ImageDetails) => row.tags.join("  "), 
+                        }
+                    ]
+                });
+                t.addRows(r.payload);
+                t.printTable();
+            } else {
+                this.simpleMsg(r);
+            }
+        });
     }
 
     public submit(props: SubmitProps): void {
