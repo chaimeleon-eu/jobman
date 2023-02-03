@@ -70,14 +70,14 @@ export class Main {
                     const tmp = cmdArgs.slice(0, cmdPos);
                     const { values } = parseArgs({ args: tmp, options: {
                         "job-name": { type: "string", short: "j" },
-                        container: { type: "string", short: "c" },
+                        image: { type: "string", short: "i" },
                         "enable-gpu": { type: "boolean", short: "e" },
                         cpus: { type: "string", short: "t" },
                         memory: { type: "string", short: "m" }
                     }
                 });
                 this.execCmd(Cmd.Submit, sp, {
-                        jobName: values["job-name"], container: values.container, gpu: values["enable-gpu"], 
+                        jobName: values["job-name"], image: values.image, gpu: values["enable-gpu"], 
                         cpus: values.cpus ? Number(values.cpus) : undefined, 
                         memory: values.memory ? Number(values.memory) : undefined,
                         command: cmdArgs.slice(cmdPos, cmdArgs.length).join(" ")
@@ -126,9 +126,9 @@ export class Main {
             case Cmd.Images: ds.images(); break;
             case Cmd.Submit: ds.submit(payload); break;
             case Cmd.List: ds.list(); break;
-            case Cmd.Details: ds.details(payload); break;
-            case Cmd.Log: ds.log(payload); break;
-            case Cmd.Delete: ds.delete(payload); break;
+            case Cmd.Details: ds.details(payload.jobName); break;
+            case Cmd.Log: ds.log(payload.jobName); break;
+            case Cmd.Delete: ds.delete(payload.jobName); break;
             default: console.error(ARGS_PARSING_ERROR_MSG);
         }
     }
