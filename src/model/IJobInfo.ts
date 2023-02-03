@@ -1,5 +1,9 @@
 export enum EJobStatus {
-    Waiting, Running, Succeeded, Failed, Unknown
+    Waiting = "waiting", 
+    Running = "running", 
+    Succeeded = "succeeded", 
+    Failed = "failed", 
+    Unknown = "unknown"
 }
 
 export interface IJobInfo {
