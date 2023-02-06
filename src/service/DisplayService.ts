@@ -1,4 +1,3 @@
-import log from "loglevel";
 import { createRequire } from "node:module";
 import util  from 'node:util';
 import ImageDetails from "../model/ImageDetails.js";
@@ -6,7 +5,7 @@ import ImageDetails from "../model/ImageDetails.js";
 const require = createRequire(import.meta.url);
 const { Table } = require('console-table-printer');
 
-import { KubeOpReturn } from "../model/KubeOpReturn.js";
+import { KubeOpReturn, KubeOpReturnStatus } from "../model/KubeOpReturn.js";
 import { Settings } from "../model/Settings.js";
 import SubmitProps from "../model/SubmitProps.js";
 import KubeManager from "./KubeManager.js";
@@ -40,13 +39,14 @@ export default class DisplayService {
                     });
                     t.addRows(r.payload);
                     t.printTable();
-                }));
+                }))
+                .catch(e => this.simpleMsg(new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null)));
     }
 
     public submit(props: SubmitProps): void {
         this.km.submit(props)
-            .then(r => this.simpleMsg(r, null))
-            .catch(e => log.error(e));
+            .then(r => this.simpleMsg(r))
+            .catch(e => this.simpleMsg(new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null)));
     }
     
 
@@ -74,7 +74,7 @@ export default class DisplayService {
                     t.addRows(r.payload);
                     t.printTable();
                 }))
-            .catch(e => log.error(e));
+            .catch(e => this.simpleMsg(new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null)));
     }
 
     public details(jobName: string | null | undefined): void {
@@ -84,25 +84,25 @@ export default class DisplayService {
     public log(jobName: string): void {
         this.km.log(jobName)
             .then(r => this.simpleMsg(r, () => console.log(r.payload)))
-            .catch(e => log.error(e));
+            .catch(e => this.simpleMsg(new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null)));
 
     }
 
     public delete(jobName: string): void {
         this.km.delete(jobName)
-            .then(r => this.simpleMsg(r, null))
-            .catch(e => log.error(e));
+            .then(r => this.simpleMsg(r))
+            .catch(e => this.simpleMsg(new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null)));
     }
 
-    protected simpleMsg(op: KubeOpReturn<any>, displayFunc: Function | null): void {
+    protected simpleMsg(op: KubeOpReturn<any>, displayFunc: Function | undefined = undefined): void {
         if (op.isOk()) {
             if (displayFunc) {
                 displayFunc(op.payload);
             } else {
-                console.log(op.message);
+                console.log("\x1b[32m", "[SUCCESS]", "\x1b[0m", op.message);
             }
         } else {
-            console.error(op.message);
+            console.error("\x1b[31m", "[ERROR]", "\x1b[0m", op.message);
         }
     }
 
