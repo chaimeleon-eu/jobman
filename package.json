@@ -1,8 +1,11 @@
 {
   "name": "jobman",
-  "main": "./src/index.ts",
+  "main": "./dist/index.ts",
   "exports": {
     "default": "./src/"
+  },
+  "bin": {
+    "jobman": "./bin/jobman"
   },
   "version": "1.0.0",
   "description": "The Kubernetes job manager",
@@ -24,6 +27,7 @@
   },
   "scripts": {
     "start": "ts-node-esm src/index.ts",
+    "prod": "node dist/index.js",
     "dev": "nodemon --exec 'npm start'",
     "test": "jest"
   },

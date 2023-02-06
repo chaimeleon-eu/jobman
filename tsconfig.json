@@ -1,10 +1,13 @@
 {
-    "include": ["/**/*.ts"],
-    "exclude": ["node_modules"],
+    "include": ["./src/**/*.ts", "./src/**/*.json"],
+    "exclude": ["./test", "./node_modules", "./dist", "./bin"],
         "$schema": "https://json.schemastore.org/tsconfig",
         "extends": "@tsconfig/node18-strictest-esm/tsconfig.json",
         "display": "Node 18 + ESM + Strict(est)",
         "compilerOptions": {
+          "sourceMap": true,
+           "outDir": "./dist/",
+           "rootDir": "src",
           "lib": [
             "es2022"
           ],
@@ -29,5 +32,6 @@
           "checkJs": true,
           "resolveJsonModule": true,
           "strictPropertyInitialization": false
-        }
+        },
+        "compileOnSave": true
   }

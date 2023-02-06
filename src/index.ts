@@ -138,7 +138,7 @@ export class Main {
     }
     
     protected printV() {
-        console.info();
+        console.info(this.getV());
     }
     
     public getV(): string {
@@ -147,8 +147,8 @@ export class Main {
 
 }
 
-function main(): number {
-    let main = new Main(process.argv);
+export function main(args: string[]): number {
+    let main = new Main(args);
     try {
         return main.run();
     } catch (e) {
@@ -159,7 +159,7 @@ function main(): number {
 
 
 
-const code = main();
+const code = main(process.argv);
 if (code !== 0) {
     exit(code);
 }
