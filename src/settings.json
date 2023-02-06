@@ -18,8 +18,8 @@
         }
     },
     "kubeConfig": {
-        "type": "default",
-        "file": null
+        "type": "file",
+        "file": "/kube_config.json"
     },
     "harbor": {
         "url": "https://harbor.chaimeleon-eu.i3m.upv.es",

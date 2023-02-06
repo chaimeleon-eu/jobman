@@ -80,7 +80,7 @@ export class Main {
                         jobName: values["job-name"], image: values.image, gpu: values["enable-gpu"], 
                         cpus: values.cpus ? Number(values.cpus) : undefined, 
                         memory: values.memory ? Number(values.memory) : undefined,
-                        command: cmdArgs.slice(cmdPos, cmdArgs.length).join(" ")
+                        command: cmdArgs.slice(cmdPos + 1, cmdArgs.length).join(" ")
                     });
                 } else {
                     throw new ParameterException("Missing container command separator '--'. It is needed to separate jobman's args and the actual command  passed to the container.");
@@ -156,8 +156,6 @@ export function main(args: string[]): number {
         return 1;
     }
 }
-
-
 
 const code = main(process.argv);
 if (code !== 0) {

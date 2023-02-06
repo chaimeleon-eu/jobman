@@ -1,14 +1,15 @@
 export enum EJobStatus {
-    Waiting = "waiting", 
-    Running = "running", 
-    Succeeded = "succeeded", 
-    Failed = "failed", 
-    Unknown = "unknown"
+    Waiting = "Waiting", 
+    WaitingError = "Waiting - error", 
+    Running = "Running", 
+    Succeeded = "Succeeded", 
+    Failed = "Failed", 
+    Unknown = "Unknown"
 }
 
 export interface IJobInfo {
 
     name: string;
-    uid: string;
+    uid?: string | undefined;
 
 }

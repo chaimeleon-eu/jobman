@@ -5,6 +5,7 @@
         "extends": "@tsconfig/node18-strictest-esm/tsconfig.json",
         "display": "Node 18 + ESM + Strict(est)",
         "compilerOptions": {
+          "watch": false,
           "sourceMap": true,
            "outDir": "./dist/",
            "rootDir": "src",

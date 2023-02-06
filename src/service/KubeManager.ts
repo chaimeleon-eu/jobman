@@ -1,4 +1,4 @@
-import { KubeConfig, BatchV1Api, V1Job, V1JobStatus, V1DeleteOptions, Watch, CoreV1Api, V1PodList } from '@kubernetes/client-node';
+import { KubeConfig, BatchV1Api, V1Job, V1JobStatus, V1DeleteOptions, Watch, CoreV1Api, V1PodList, HttpError, V1Pod } from '@kubernetes/client-node';
 import { v4 as uuidv4 }  from "uuid";
 import log from "loglevel";
 import fetch, { RequestInit, Response } from "node-fetch";
@@ -15,6 +15,7 @@ import ImageDetails from '../model/ImageDetails.js';
 import HarborRepository from '../model/HarborRepository.js';
 import { HarborRespositoryArtifact } from '../model/HarborRespositoryArtifact.js';
 import { existsSync } from 'node:fs';
+import KubeException from '../model/exception/KubeException.js';
 
 
 
@@ -33,77 +34,100 @@ export default class KubeManager {
         this.watch = new Watch(this.clusterConfig);
     }
 
-    public async submit(props: SubmitProps): Promise<KubeOpReturn<undefined>> {
-        console.log(props);
-        if (!props.image) {
-            throw new ParameterException("Please specify an image and tag. Use the 'images' command to see the available images and tags for each of them.");
-        }
-        const jn: string = props.jobName ?? `job.${uuidv4()}`;
-        const cont = props.image ?? this.settings.job.defaultImage;
-        let job: V1Job = new V1Job();
-        job.metadata = {
-            name: jn,
-            namespace: this.getNamespace()
-        }
-        job.kind = "Job";
-        job.spec = {
-            backoffLimit: 0,
-            template: {
-                metadata: {
-                    name: jn
-                },
-                spec: {
-                    containers: [
-                        {
-                            name: cont,
-                            image: cont,
-                            command: props.command ? ["bin/bash", "-c", props.command] : [],
-                            resources: {
-                                requests: {
-                                    cpu: `${(props.cpus ? Number(props.cpus) : this.settings.job.requests.cpu) * 1000}m`,
-                                    memory: `${(props.memory ? Number(props.memory) : this.settings.job.requests.memory)}Mi`
-                                }, 
-                                limits: {
-                                    cpu: `${this.settings.job.limits.cpu * 1000}m`,
-                                    memory: `${this.settings.job.limits.memory}Mi`,
-                                    [this.settings.job.gpuResName]: props.gpu ? "1" : "0"
+    public async submit(props: SubmitProps): Promise<KubeOpReturn<null>> {
+        try {
+            if (!props.image) {
+                return new KubeOpReturn(KubeOpReturnStatus.Error,
+                    "Please specify an image and tag. Use the 'images' command to see the available images and tags for each of them.",
+                    null);
+            }
+            const jn: string = props.jobName ?? `job.${uuidv4()}`;
+            const cont = props.image ?? this.settings.job.defaultImage;
+            let job: V1Job = new V1Job();
+            job.metadata = {
+                name: jn,
+                namespace: this.getNamespace()
+            }
+            job.kind = "Job";
+            job.spec = {
+                backoffLimit: 0,
+                template: {
+                    metadata: {
+                        name: jn
+                    },
+                    spec: {
+                        containers: [
+                            {
+                                name: cont,
+                                image: cont,
+                                command: props.command ? [props.command] :  ["/bin/sh", "-c", "echo 'No command provided to container"],
+                                resources: {
+                                    requests: {
+                                        cpu: `${(props.cpus ? Number(props.cpus) : this.settings.job.requests.cpu) * 1000}m`,
+                                        memory: `${(props.memory ? Number(props.memory) : this.settings.job.requests.memory)}Mi`
+                                    }, 
+                                    limits: {
+                                        cpu: `${this.settings.job.limits.cpu * 1000}m`,
+                                        memory: `${this.settings.job.limits.memory}Mi`,
+                                        //[this.settings.job.gpuResName]: props.gpu ? "1" : "0"
+                                    }
                                 }
                             }
-                        }
-                    ],
-                    restartPolicy: "Never",
-                    // affinity: {
-                    //     nodeAffinity: {
-                    //         requiredDuringSchedulingIgnoredDuringExecution: {
-                    //             nodeSelectorTerms:[
-                    //                 {
-                    //                     matchExpressions: [
-                    //                         {
-                    //                             key: props.gpu ? this.settings.job.affinity.gpu : this.settings.job.affinity.cpu,
-                    //                             operator: "Exist"
-                    //                         }
-                    //                     ]
-                    //                 }
-                    //             ]
-                    //         }
-                    //     }
-                    // }
+                        ],
+                        restartPolicy: "Never",
+                        // affinity: {
+                        //     nodeAffinity: {
+                        //         requiredDuringSchedulingIgnoredDuringExecution: {
+                        //             nodeSelectorTerms:[
+                        //                 {
+                        //                     matchExpressions: [
+                        //                         {
+                        //                             key: props.gpu ? this.settings.job.affinity.gpu : this.settings.job.affinity.cpu,
+                        //                             operator: "Exist"
+                        //                         }
+                        //                     ]
+                        //                 }
+                        //             ]
+                        //         }
+                        //     }
+                        // }
+                    }
                 }
-            }
 
+            }
+            //log.info(`Submiting job ${jn} for user ${this.getUsername()}`);
+            const r = await this.k8sApi.createNamespacedJob(this.getNamespace(), job);
+            return new KubeOpReturn(this.getStatusKubeOp(r.response.statusCode), 
+                `Job '${jn}' created successfully by user '${this.getUsername()}'`, null);
+        
+        } catch (e) {
+            return this.handleKubeOpsError(e);
         }
-        log.info(`Submiting job ${jn} for user ${this.getUsername()}`);
-        const r = await this.k8sApi.createNamespacedJob(this.getNamespace(), job);
-        return new KubeOpReturn(this.getStatusKubeOp(r.response.statusCode), r.response.statusMessage, undefined);
     }
 
-    public async list(): Promise<KubeOpReturn<IJobInfo[]>> {
-        const r: KubeOpReturn<V1Job[]> = (await this.getJobsList(this.getNamespace()));
-        return new KubeOpReturn(r.status, r.message, r.payload?.map(e => <JobInfo>{ name: e.metadata?.name,
-            uid: e.metadata?.uid,
-            status: this.getStatusJob(e.status),
-            dateLaunched: e.metadata?.creationTimestamp,
-            position: 0}));
+    public async list(): Promise<KubeOpReturn<IJobInfo[] | null>> {
+        try {
+            const r: KubeOpReturn<V1Job[]> = (await this.getJobsList(this.getNamespace()));
+
+            if (r.payload) {
+                let res: JobInfo[] = [];
+                for (const e of r.payload) {
+                    const jn = e.metadata?.name;
+                    if (jn) {
+                        res.push({ name: jn,
+                        uid: e.metadata?.uid,
+                        status: await this.getStatusJob(jn, e.status),
+                        dateLaunched: e.metadata?.creationTimestamp,
+                        position: 0});
+                    }
+                }
+                return new KubeOpReturn(r.status, r.message, res);
+            } else {
+                return new KubeOpReturn(KubeOpReturnStatus.Success, "Empty jobs", null);
+            }
+        } catch (e) {
+            return this.handleKubeOpsError(e);
+        }
     }
 
     public async images(): Promise<KubeOpReturn<ImageDetails[]>> {
@@ -132,88 +156,95 @@ export default class KubeManager {
             }
             return new KubeOpReturn(response.status, response.statusText, result);
         } else {
-            console.error(`Unable to load repositories from ${reposUrl}`);
+            console.error(`Unable to load repositories from '${reposUrl}'`);
         }
         return new KubeOpReturn(response.status, response.statusText, result);
     }
 
-    public async details(jobName: string | undefined = undefined): Promise<KubeOpReturn<IJobInfo[]>> {
+    public async details(jobName: string | undefined = undefined): Promise<KubeOpReturn<IJobInfo | null>> {
         const r: KubeOpReturn<V1Job[]> = (await this.getJobsList(this.getNamespace()));
-        return new KubeOpReturn(r.status, r.message, r.payload?.map(e => <JobInfo>{ name: e.metadata?.name,
-            uid: e.metadata?.uid,
-            status: this.getStatusJob(e.status),
-            dateLaunched: e.metadata?.creationTimestamp,
-            position: 0}));
+        return new KubeOpReturn(r.status, r.message, null);
     }
 
     public async log(jobName: string, follow: boolean | undefined = false, tail: number | undefined = undefined): 
             Promise<KubeOpReturn<string | null>>{
+        try {
+                const podName: string | undefined =  (await this.getJobPodInfo(jobName))?.metadata?.name;
+                if (podName) {
+                    console.log(`Getting log for pod '${podName}'`);
+                    const log: string = await (await this.k8sCoreApi.readNamespacedPodLog(podName, this.getNamespace())).body;
+                    return new KubeOpReturn(KubeOpReturnStatus.Success, undefined, !log ? "<Empty Log>" :  log);
+                } else {
+                    return new KubeOpReturn(KubeOpReturnStatus.Error, `Unable to determine the pod name for job '${jobName}'.`, null);
+                }
+        } catch (e) {
+            return this.handleKubeOpsError(e);
+        }
+    }
+
+    public async delete(jobName: string | null = null): Promise<KubeOpReturn<null>> {
+        try {
+            const uname: string | undefined = this.clusterConfig.getCurrentUser()?.name;
+            if (!uname) 
+                throw new Error("Unable to determine user name from the current context");
+            const deleteObj: V1DeleteOptions = {
+                apiVersion: 'v1',
+                propagationPolicy: 'Background'
+                }
+            //let response = new Map();
+            if (jobName) {
+                log.info(`Deleting job named ${jobName} for user ${this.getUsername()}`);
+                const r = await this.k8sApi.deleteNamespacedJob(jobName, uname, 
+                    undefined, undefined, undefined, undefined, undefined, deleteObj);
+        //         let deleted: boolean = false;
+        //         const req = await this.watch.watch(
+        //             '/api/v1/namespaces',
+
+        // {
+        //     allowWatchBookmarks: true,
+        // },
+        // // callback is called for each received object.
+        // (type, apiObj, watchObj) => {
+        //     if (type === 'DELETED') {
+        //         deleted = true;
+        //     }
+        // },
+        // (err) => {
+        //     // tslint:disable-next-line:no-console
+        //     console.log(err);
+        // })
+        // .then((req) => {
+        //             // watch returns a request object which you can use to abort the watch.
+        //             setTimeout(() => { 
+        //                 if (deleted)
+        //                     req.abort(); 
+        //             }, 100);
+        //             //onDeleted(req);
+        //         });
+                
+
+                //response.set(jobName, r.response.statusMessage);
+                return new KubeOpReturn(this.getStatusKubeOp(r.response.statusCode), 
+                    `Job '${jobName}' has been successfully deleted by user '${this.getUsername()}'`, null);
+            } else {
+                throw new NotImplementedException("Not implemented for case when job name not specified");
+            }
+        } catch (e) {
+            return this.handleKubeOpsError(e);
+        }
+    }
+
+    protected async getJobPodInfo(jobName: string): Promise<V1Pod | undefined> {
         const r: V1Job = await (await this.k8sApi.readNamespacedJob(jobName, this.getNamespace())).body;
         const cUid: string | undefined = r?.metadata?.labels?.["controller-uid"];
         if (cUid) {
             const podLblSel: string = "controller-uid=" + cUid;
             const pods: V1PodList = await (await this.k8sCoreApi.listNamespacedPod(this.getNamespace(), 
                 undefined, undefined, undefined, undefined, podLblSel)).body;
-            const podName: string | undefined = pods.items[0]?.metadata?.name;
-            console.log(`Getting log for pod '${podName}'`);
-            if (podName) {
-                const log: string = await (await this.k8sCoreApi.readNamespacedPodLog(podName, this.getNamespace())).body;
-                return new KubeOpReturn(KubeOpReturnStatus.Success, undefined, !log ? "<Empty Log>" :  log);
-            } else {
-                return new KubeOpReturn(KubeOpReturnStatus.Error, `Unable to determine the pod name for job '${jobName}'.`, null);
-            }
+            console.log(pods.items[0]?.status);
+            return pods.items[0];
         } else {
-            return new KubeOpReturn(KubeOpReturnStatus.Error, `Unable to determine controller uid for job '${jobName}'.`, null);
-        }
-    }
-
-    public async delete(jobName: string | null = null): Promise<KubeOpReturn<undefined>> {
-        console.log(jobName);
-        const uname: string | undefined = this.clusterConfig.getCurrentUser()?.name;
-        if (!uname) 
-            throw new Error("Unable to determine user name from the current context");
-        const deleteObj: V1DeleteOptions = {
-            apiVersion: 'v1',
-            propagationPolicy: 'Background'
-            }
-        //let response = new Map();
-        if (jobName) {
-            log.info(`Deleting job named ${jobName} for user ${this.getUsername()}`);
-            const r = await this.k8sApi.deleteNamespacedJob(jobName, uname, 
-                undefined, undefined, undefined, undefined, undefined, deleteObj);
-    //         let deleted: boolean = false;
-    //         const req = await this.watch.watch(
-    //             '/api/v1/namespaces',
-
-    // {
-    //     allowWatchBookmarks: true,
-    // },
-    // // callback is called for each received object.
-    // (type, apiObj, watchObj) => {
-    //     if (type === 'DELETED') {
-    //         deleted = true;
-    //     }
-    // },
-    // (err) => {
-    //     // tslint:disable-next-line:no-console
-    //     console.log(err);
-    // })
-    // .then((req) => {
-    //             // watch returns a request object which you can use to abort the watch.
-    //             setTimeout(() => { 
-    //                 if (deleted)
-    //                     req.abort(); 
-    //             }, 100);
-    //             //onDeleted(req);
-    //         });
-            
-
-            //response.set(jobName, r.response.statusMessage);
-            return new KubeOpReturn(this.getStatusKubeOp(r.response.statusCode), 
-                `Job '${jobName}' has been successfully deleted by user '${this.getUsername()}'`, undefined);
-        } else {
-            throw new NotImplementedException("Not implemented for case when job name not specified");
-
+            throw new KubeException(`Unable to determine controller UID for job '${jobName}'.`);
         }
     }
 
@@ -234,15 +265,30 @@ export default class KubeManager {
         return new KubeOpReturn(this.getStatusKubeOp(res.response.statusCode), res.response.statusMessage, res.body.items);
     }
 
-    protected getStatusJob(stat: V1JobStatus | undefined): EJobStatus  {
+    protected async getStatusJob(jobName: string, stat: V1JobStatus | undefined): Promise<EJobStatus>  {
         if (stat) {
-            if (stat.active && stat.active >= 1) {
-                return EJobStatus.Running;
-            } else if (stat.succeeded && stat.succeeded >= 1) {
+            if (stat.failed === undefined && stat.succeeded === undefined) {
+                // we have to check what the pod is doing
+                const podPhase: string | undefined =  (await this.getJobPodInfo(jobName))?.status?.phase?.toLowerCase();
+                switch (podPhase) {
+                    case "pending": return EJobStatus.Waiting;
+                    case "running": return EJobStatus.Running;
+                    case "succeeded": return EJobStatus.Succeeded;
+                    case "failed": return EJobStatus.Failed;
+                    case undefined: // Same as unknown
+                    case "unknown": return EJobStatus.Unknown;
+                    default: throw new UnhandledValueException(`Unhandled pod status '${podPhase}.`);
+                }
+            } else if (stat.active === 0 && stat.succeeded && stat.succeeded >= 1) {
                 return EJobStatus.Succeeded;
+            } else if (stat.active === 0 && stat.failed && stat.failed >= 1) {
+                return EJobStatus.Failed;
+            } else {
+                return EJobStatus.Unknown;
             }
+        } else {
+            return EJobStatus.Unknown;
         }
-        return EJobStatus.Unknown;
     }
 
     protected loadKubeConfig(cfg: KubeConfigLocal): KubeConfig {
@@ -270,6 +316,17 @@ export default class KubeManager {
             throw new Error("Unable to determine user name from the current context");
         else 
             return uname;
+
+    }
+
+    protected handleKubeOpsError(e: any): KubeOpReturn<null> {
+        if (e instanceof HttpError) {
+            return new KubeOpReturn(KubeOpReturnStatus.Error, `Error message from Kubernetes: ${e.body.message}`, null);
+        } if (e instanceof Error || e instanceof KubeException) {
+            return new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null);
+        } else {
+            return new KubeOpReturn(KubeOpReturnStatus.Error, `Unknown error: ${JSON.stringify(e)}`, null);
+        }
 
     }
 

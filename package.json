@@ -7,7 +7,7 @@
   "bin": {
     "jobman": "./bin/jobman"
   },
-  "version": "1.0.0",
+  "version": "1.0.0-ALPHA",
   "description": "The Kubernetes job manager",
   "dependencies": {
     "@kubernetes/client-node": "^0.18.1",
