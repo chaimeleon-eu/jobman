@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import util  from 'node:util';
 import ImageDetails from "../model/ImageDetails.js";
+import JobInfo from "../model/JobInfo.js";
 //import ImageDetails from "../model/ImageDetails.js";
 const require = createRequire(import.meta.url);
 const { Table } = require('console-table-printer');
@@ -13,6 +14,13 @@ import KubeManager from "./KubeManager.js";
 
 export default class DisplayService {
     protected km: KubeManager;
+
+    protected options: Intl.DateTimeFormatOptions = {
+        year: 'numeric', month: 'numeric', day: 'numeric',
+        hour: 'numeric', minute: 'numeric', second: 'numeric',
+        hour12: false,
+        timeZoneName: 'short'
+      };
 
     constructor(settings: Settings) {
         this.km = new KubeManager(settings);
@@ -55,7 +63,7 @@ export default class DisplayService {
             .then(r => this.simpleMsg(r, 
                 () => {
                     const t = new Table({
-                        enabledColumns: ["name", "status", "dateLaunched"],
+                        enabledColumns: ["name", "status", "Launching Date"],
                         columns: [
                           {
                             name: "name",
@@ -64,11 +72,14 @@ export default class DisplayService {
                           {
                             name: "status",
                             title: "Status"
-                          },
-                          {
-                            name: "dateLaunched",
-                            title: "Launching Date"
                           }
+                        ],
+                        computedColumns:[
+                            {
+                                name: "Launching Date",
+                                function: (row: JobInfo) => new Intl.DateTimeFormat('en-GB', this.options)
+                                                .format(row.dateLaunched), 
+                            }
                         ]
                     });
                     t.addRows(r.payload);
