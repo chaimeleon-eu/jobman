@@ -41,6 +41,7 @@ export default class KubeManager {
                     "Please specify an image and tag. Use the 'images' command to see the available images and tags for each of them.",
                     null);
             }
+            console.log(`Parameters sent to the job's container: ${JSON.stringify(props.command)}`);
             const jn: string = props.jobName ?? `job.${uuidv4()}`;
             const cont = props.image ?? this.settings.job.defaultImage;
             let job: V1Job = new V1Job();
@@ -60,7 +61,7 @@ export default class KubeManager {
                             {
                                 name: cont,
                                 image: cont,
-                                command: props.command ? [props.command] :  ["/bin/sh", "-c", "echo 'No command provided to container"],
+                                command: props.command ? props.command :  ["/bin/sh", "-c", "echo 'No command provided to container"],
                                 resources: {
                                     requests: {
                                         cpu: `${(props.cpus ? Number(props.cpus) : this.settings.job.requests.cpu) * 1000}m`,
@@ -98,7 +99,7 @@ export default class KubeManager {
             //log.info(`Submiting job ${jn} for user ${this.getUsername()}`);
             const r = await this.k8sApi.createNamespacedJob(this.getNamespace(), job);
             return new KubeOpReturn(this.getStatusKubeOp(r.response.statusCode), 
-                `Job '${jn}' created successfully by user '${this.getUsername()}'`, null);
+                `Job named '${jn}' created successfully by user '${this.getUsername()}'`, null);
         
         } catch (e) {
             return this.handleKubeOpsError(e);
@@ -121,7 +122,7 @@ export default class KubeManager {
                         position: 0});
                     }
                 }
-                return new KubeOpReturn(r.status, r.message, res);
+                return new KubeOpReturn(KubeOpReturnStatus.Success, r.message, res);
             } else {
                 return new KubeOpReturn(KubeOpReturnStatus.Success, "Empty jobs", null);
             }
@@ -148,17 +149,18 @@ export default class KubeManager {
                 if (rArtifacts.ok) {
                     const arts: HarborRespositoryArtifact[] = await rArtifacts.json() as HarborRespositoryArtifact[];
                     for (const art of arts ) {
-                        tags.push(...art.tags.map(t => t.name));
+                        if (art.tags !== null)
+                            tags.push(...art.tags.map(t => t.name));
                     }
                 } else {
                     console.warn(`Unable to load artifacts from ${artsUrl}`);
                 }
             }
-            return new KubeOpReturn(response.status, response.statusText, result);
+            return new KubeOpReturn(KubeOpReturnStatus.Success, response.statusText, result);
         } else {
             console.error(`Unable to load repositories from '${reposUrl}'`);
         }
-        return new KubeOpReturn(response.status, response.statusText, result);
+        return new KubeOpReturn(KubeOpReturnStatus.Error, response.statusText, result);
     }
 
     public async details(jobName: string | undefined = undefined): Promise<KubeOpReturn<IJobInfo | null>> {
@@ -241,7 +243,7 @@ export default class KubeManager {
             const podLblSel: string = "controller-uid=" + cUid;
             const pods: V1PodList = await (await this.k8sCoreApi.listNamespacedPod(this.getNamespace(), 
                 undefined, undefined, undefined, undefined, podLblSel)).body;
-            console.log(pods.items[0]?.status);
+            //console.log(pods.items[0]?.status);
             return pods.items[0];
         } else {
             throw new KubeException(`Unable to determine controller UID for job '${jobName}'.`);
