@@ -94,7 +94,7 @@ export default class DisplayService {
 
     public log(jobName: string): void {
         this.km.log(jobName)
-            .then(r => this.simpleMsg(r, () => console.log(r.payload)))
+            .then(r => this.simpleMsg(r, () => console.log("----Log begin----\n\n", "\x1b[36m", r.payload, "\x1b[0m", "\n----Log end----")))
             .catch(e => this.simpleMsg(new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null)));
 
     }
