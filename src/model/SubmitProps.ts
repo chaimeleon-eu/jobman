@@ -5,5 +5,5 @@ export default interface SubmitProps {
     gpu?: boolean | undefined; 
     cpus?: number | undefined;
     memory?: number | undefined;
-    command?: string | undefined;
+    command?: string[] | undefined;
 }

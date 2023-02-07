@@ -80,7 +80,7 @@ export class Main {
                         jobName: values["job-name"], image: values.image, gpu: values["enable-gpu"], 
                         cpus: values.cpus ? Number(values.cpus) : undefined, 
                         memory: values.memory ? Number(values.memory) : undefined,
-                        command: cmdArgs.slice(cmdPos + 1, cmdArgs.length).join(" ")
+                        command: cmdArgs.slice(cmdPos + 1, cmdArgs.length)
                     });
                 } else {
                     throw new ParameterException("Missing container command separator '--'. It is needed to separate jobman's args and the actual command  passed to the container.");
