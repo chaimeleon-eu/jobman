@@ -1,7 +1,9 @@
-import { KubeConfig, BatchV1Api, V1Job, V1JobStatus, V1DeleteOptions, Watch, CoreV1Api, V1PodList, HttpError, V1Pod } from '@kubernetes/client-node';
+import { KubeConfig, BatchV1Api, V1Job, V1JobStatus, V1DeleteOptions, Watch, CoreV1Api, V1PodList, HttpError, V1Pod, V1ConfigMap, V1CephFSVolumeSource, V1Volume, V1VolumeMount } from '@kubernetes/client-node';
 import { v4 as uuidv4 }  from "uuid";
 import log from "loglevel";
 import fetch, { RequestInit, Response } from "node-fetch";
+import fs from "node:fs";
+import path from "node:path";
 
 import { IJobInfo, EJobStatus } from '../model/IJobInfo.js';
 import JobInfo from '../model/JobInfo.js';
@@ -16,6 +18,8 @@ import HarborRepository from '../model/HarborRepository.js';
 import { HarborRespositoryArtifact } from '../model/HarborRespositoryArtifact.js';
 import { existsSync } from 'node:fs';
 import KubeException from '../model/exception/KubeException.js';
+// import { IJobVolume, JobVolumeType } from '../model/IJobVolume.js';
+// import JobVolumeMount from '../model/JobVolumeMount.js';
 
 
 
@@ -41,9 +45,12 @@ export default class KubeManager {
                     "Please specify an image and tag. Use the 'images' command to see the available images and tags for each of them.",
                     null);
             }
+            
             console.log(`Parameters sent to the job's container: ${JSON.stringify(props.command)}`);
             const jn: string = props.jobName ?? `job.${uuidv4()}`;
             const cont = props.image ?? this.settings.job.defaultImage;
+            console.log("Preparing volumes...");
+            const [volumes, volumeMounts] = await this.prepareJobVolumes();
             let job: V1Job = new V1Job();
             job.metadata = {
                 name: jn,
@@ -57,11 +64,13 @@ export default class KubeManager {
                         name: jn
                     },
                     spec: {
+                        volumes: volumes ?? [],
                         containers: [
                             {
                                 name: cont,
                                 image: cont,
                                 command: props.command ? props.command :  ["/bin/sh", "-c", "echo 'No command provided to container"],
+                                volumeMounts: volumeMounts ?? [],
                                 resources: {
                                     requests: {
                                         cpu: `${(props.cpus ? Number(props.cpus) : this.settings.job.requests.cpu) * 1000}m`,
@@ -234,6 +243,75 @@ export default class KubeManager {
         } catch (e) {
             return this.handleKubeOpsError(e);
         }
+    }
+
+    protected async getConfigmap(configMapName: string): Promise<V1ConfigMap> {
+            return await (await this.k8sCoreApi.readNamespacedConfigMap(configMapName, this.getNamespace())).body;
+    }
+
+    protected async prepareJobVolumes(): Promise<[V1Volume[] | undefined, V1VolumeMount[] | undefined]> {
+        if (this.settings.job.userConfigmap) {
+            const userConfigmap: V1ConfigMap = await this.getConfigmap(this.settings.job.userConfigmap );
+            if (userConfigmap) {
+                let vs: V1Volume[] = [
+                    {
+                        name: "datalake",
+                        cephfs: this.defJobVolume(userConfigmap,
+                                    userConfigmap.data?.["datalake.path"] ?? null, true)
+                    },
+                    {
+                        name: "home",
+                        cephfs: this.defJobVolume(userConfigmap, 
+                            userConfigmap.data?.["persistent_home.path"] ?? null, false)
+                    },
+                    {
+                        name: "shared-folder",
+                        cephfs: this.defJobVolume(userConfigmap, 
+                            userConfigmap.data?.["persistent_shared_folder.path"] ?? null, false)
+                    }
+                ];
+                let vms: V1VolumeMount[] = [
+                    {
+                        name: "datalake",
+                        mountPath: this.settings.job.mountPoints.datalake
+                    },
+                    {
+                        name: "home",
+                        mountPath: this.settings.job.mountPoints.persistent_home
+                    },
+                    {
+                        name: "shared-folder",
+                        mountPath: this.settings.job.mountPoints.persistent_shared_folder
+                    }
+                ];
+                // Mount datasets
+                const dirs: string[] = fs.readdirSync(this.settings.job.mountPoints.datasets)
+                    .filter((f: any) => fs.statSync(path.join(this.settings.job.mountPoints.datasets, f)).isDirectory())
+                for (const dir of dirs) {
+                    vs.push({
+                        name: dir,
+                        cephfs: this.defJobVolume(userConfigmap, 
+                            path.join(this.settings.job.mountPoints.datalake, dir), true)
+
+                    });
+                    vms.push({
+                        name: dir,
+                        mountPath: path.join(this.settings.job.mountPoints.datasets, dir)
+                    })
+                }
+                return [vs, vms];
+            } 
+        }
+        return [undefined, undefined];
+    }
+
+    protected defJobVolume(userConfigmap: V1ConfigMap, path: string | null, readOnly: boolean): V1CephFSVolumeSource {
+        const monitors: string[] | null =  userConfigmap.data?.["ceph.monitors"]?.split(",") 
+            ?? (userConfigmap.data?.["ceph.monitor"] ? [userConfigmap.data?.["ceph.monitor"]] : null);
+        const user: string | null = userConfigmap.data?.["ceph.user"] ?? null;
+        return Object.assign(Object.create(V1CephFSVolumeSource), 
+            monitors, user, {secretRef: {name: "ceph-auth"}}, readOnly, path);
+
     }
 
     protected async getJobPodInfo(jobName: string): Promise<V1Pod | undefined> {

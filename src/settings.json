@@ -4,6 +4,14 @@
     "job": {
         "defaultImage": "default",
         "gpuResName": "nvidia.com/gpu",
+        "userConfigmap": null,
+        "datasetsEnvVar": "CHAIMELEON_DATASETS",
+        "mountPoints": {
+            "datalake": "/mnt/datalake",
+            "persistent_home": "/home/chaimeleon/persistent-home",
+            "persistent_shared_folder": "/home/chaimeleon/persistent-shared-folder",
+            "datasets": "/home/chaimeleon/datasets"
+        },
         "affinity": {
             "cpu": "NODE_WITH_CPUS_NO_GPU",
             "gpu": "NODE WITH GPU"

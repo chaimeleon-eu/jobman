@@ -1,3 +1,4 @@
+
 export enum KubeConfigType {
     default = "default", 
     cluster = "cluster",
@@ -16,10 +17,20 @@ export interface LimitsRequests {
     memory: number;
 }
 
+export interface MountPoints {
+    datalake: string,
+    persistent_home: string,
+    persistent_shared_folder: string,
+    datasets: string
+
+}
+
 export interface Job {
 
     defaultImage: string;
     gpuResName: string;
+    userConfigmap: string | null | undefined,
+    mountPoints: MountPoints,
     affinity: Affinity;
     limits: LimitsRequests;
     requests: LimitsRequests;
