@@ -1,13 +1,12 @@
 
 //import log from "loglevel";
 import { parseArgs } from 'node:util';
-import fs from 'fs';
 import { exit } from "node:process";
 
-import settings from "./settings.json" assert { type: "json" };
 import DisplayService from "./service/DisplayService.js";
 import ParameterException from './model/exception/ParameterException.js';
 import { Settings } from './model/Settings.js';
+import SettingsManager from './service/SettingsManager.js';
 
 const ARGS_PARSING_ERROR_MSG: string = "Error parsing the arguments, please check the help by passing -h/--help as first arg of the application.";
 
@@ -116,11 +115,8 @@ export class Main {
         }
     }
 
-    protected execCmd(cmd: Cmd, sp: string | null, payload: any): void {  
-        let s: Settings = settings as unknown as Settings;
-        if (sp) {
-            s = JSON.parse(fs.readFileSync(sp, 'utf-8'))
-        }
+    protected execCmd(cmd: Cmd, sp: string | null, payload: any): void { 
+        const s: Settings = new SettingsManager(sp).settings;
         let ds: DisplayService = new DisplayService(s);
         switch (cmd) {
             case Cmd.Images: ds.images(); break;
