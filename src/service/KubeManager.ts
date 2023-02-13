@@ -411,7 +411,11 @@ export default class KubeManager {
     }
 
     protected getNamespace(): string {
-        return this.getUsername();
+        const nm: string | undefined = this.clusterConfig.getContexts().filter(c => c.name === this.clusterConfig.getCurrentContext())?.[0]?.namespace;
+        if (!nm)
+            throw new KubeException("Unable to determine namespace");//this.getUsername();
+        else   
+            return nm;
     }
 
     protected fetchCustom(url: string, init?: RequestInit): Promise<Response> {
