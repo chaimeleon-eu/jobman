@@ -17,13 +17,16 @@ export default class SettingsManager {
             this._settings = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'settings.json'), 'utf8'));
             // try to read from user's home
             const uH: string = path.join(homedir(), SettingsManager.USER_HOME_PATH);
-            try {
-                let settingsHome: Settings = JSON.parse(fs.readFileSync(uH, 'utf8'));
-                console.log(`Merging settings found in user's home at '${uH}' into global settings...`);
-                Object.assign(this._settings, settingsHome);
-            } catch (e) {
-                console.error(e);
-                console.log(`Settings not found in user's home at '${uH}'`)
+            if (fs.existsSync(uH)) {
+                try {
+                    let settingsHome: Settings = JSON.parse(fs.readFileSync(uH, 'utf8'));
+                    console.log(`Merging settings found in user's home at '${uH}' into global settings...`);
+                    Object.assign(this._settings, settingsHome);
+                } catch (e) {
+                    console.error(e);
+                }
+            } else {
+                console.log(`Settings not found in user's home at '${uH}'`);
             }
         } else {
             this._settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
