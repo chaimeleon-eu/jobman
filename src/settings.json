@@ -6,6 +6,13 @@
         "gpuResName": "nvidia.com/gpu",
         "userConfigmap": null,
         "datasetsEnvVar": "CHAIMELEON_DATASETS",
+        "priorityClassName": null,
+        "securityContext": {
+            "runAsUser": 0,
+            "runAsGroup": 0,
+            "fsGroup": 0,
+            "supplementalGroups": []
+        },
         "mountPoints": {
             "datalake": null,
             "persistent_home": null,
@@ -18,16 +25,16 @@
         },
         "requests": {
             "cpu": 1,
-            "memory": 1000
+            "memory": 1
         },
         "limits": {
             "cpu": 1,
-            "memory": 1000
+            "memory": 1
         }
     },
     "kubeConfig": {
-        "type": "cluster",
-        "file": null
+        "type": "file",
+        "file": "/kube_config.json"
     },
     "harbor": {
         "url": "https://harbor.chaimeleon-eu.i3m.upv.es",

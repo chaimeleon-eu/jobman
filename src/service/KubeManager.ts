@@ -1,4 +1,4 @@
-import { KubeConfig, BatchV1Api, V1Job, V1JobStatus, V1DeleteOptions, Watch, CoreV1Api, V1PodList, HttpError, V1Pod, V1ConfigMap, V1CephFSVolumeSource, V1Volume, V1VolumeMount } from '@kubernetes/client-node';
+import { KubeConfig, BatchV1Api, V1Job, V1JobStatus, V1DeleteOptions, Watch, CoreV1Api, V1PodList, HttpError, V1Pod, V1ConfigMap, V1CephFSVolumeSource, V1Volume, V1VolumeMount, V1PodSecurityContext } from '@kubernetes/client-node';
 import { v4 as uuidv4 }  from "uuid";
 import log from "loglevel";
 import fetch, { RequestInit, Response } from "node-fetch";
@@ -9,7 +9,7 @@ import { IJobInfo, EJobStatus } from '../model/IJobInfo.js';
 import JobInfo from '../model/JobInfo.js';
 import ParameterException from '../model/exception/ParameterException.js';
 import SubmitProps from '../model/SubmitProps.js';
-import { KubeConfigLocal, KubeConfigType, Settings } from '../model/Settings.js';
+import { KubeConfigLocal, KubeConfigType, SecurityContext, Settings } from '../model/Settings.js';
 import NotImplementedException from '../model/exception/NotImplementedException.js';
 import { KubeOpReturn, KubeOpReturnStatus } from '../model/KubeOpReturn.js';
 import UnhandledValueException from '../model/exception/UnhandledValueException.js';
@@ -57,6 +57,15 @@ export default class KubeManager {
                 namespace: this.getNamespace()
             }
             job.kind = "Job";
+            let securityContext: SecurityContext | undefined | null = this.settings.job.securityContext;
+            if (securityContext && this.settings.job.userConfigmap) {
+                const userConfigmap: V1ConfigMap = await this.getConfigmap(this.settings.job.userConfigmap);
+                const sgs: string | undefined | null = userConfigmap.data?.["ceph.gid"]
+                if (sgs) {
+                    securityContext.supplementalGroups = [Number(sgs)];
+                }
+            }
+            const priorityClassName: string | undefined | null = this.settings.job.priorityClassName;
             job.spec = {
                 backoffLimit: 0,
                 template: {
@@ -64,13 +73,15 @@ export default class KubeManager {
                         name: jn
                     },
                     spec: {
-                        volumes: volumes ?? [],
+                        ...securityContext && {...new V1PodSecurityContext(), ...securityContext},
+                        ...priorityClassName && {priorityClassName},
+                        ...volumes && {volumes},
                         containers: [
                             {
                                 name: cont,
                                 image: cont,
                                 command: props.command ? props.command :  ["/bin/sh", "-c", "echo 'No command provided to container"],
-                                volumeMounts: volumeMounts ?? [],
+                                ...volumeMounts && {volumeMounts},
                                 resources: {
                                     requests: {
                                         cpu: `${(props.cpus ? Number(props.cpus) : this.settings.job.requests.cpu) * 1000}m`,

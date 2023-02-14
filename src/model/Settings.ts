@@ -25,11 +25,20 @@ export interface MountPoints {
 
 }
 
+export interface SecurityContext {
+    runAsUser?: number;
+    runAsGroup?: number;
+    fsGroup?: number;
+    supplementalGroups?: Array<number>;
+}
+
 export interface Job {
 
     defaultImage: string;
     gpuResName: string;
     userConfigmap: string | null | undefined,
+    priorityClassName?: string | null;
+    securityContext?: SecurityContext | null;
     mountPoints: MountPoints,
     affinity: Affinity;
     limits: LimitsRequests;

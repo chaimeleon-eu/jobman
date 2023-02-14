@@ -19,12 +19,12 @@ export default class SettingsManager {
             const uH: string = path.join(homedir(), SettingsManager.USER_HOME_PATH);
             try {
                 let settingsHome: Settings = JSON.parse(fs.readFileSync(uH, 'utf8'));
-                console.log(`Merging settings found in user's home at '${uH}' to global...`);
+                console.log(`Merging settings found in user's home at '${uH}' into global settings...`);
                 Object.assign(this._settings, settingsHome);
             } catch (e) {
+                console.error(e);
                 console.log(`Settings not found in user's home at '${uH}'`)
             }
-            console.log(this._settings);
         } else {
             this._settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
         }
