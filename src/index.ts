@@ -2,6 +2,9 @@
 //import log from "loglevel";
 import { parseArgs } from 'node:util';
 import { exit } from "node:process";
+import fs from "node:fs";
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 import DisplayService from "./service/DisplayService.js";
 import ParameterException from './model/exception/ParameterException.js';
@@ -15,6 +18,8 @@ export enum Cmd {
 }
 
 export class Main {
+
+    public static readonly USAGE_FILE: string = "usage.txt";
 
     protected args: string[];
 
@@ -130,7 +135,8 @@ export class Main {
     }
     
     protected printH() {
-        console.info("help");
+        const __dirname: string = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+        console.info(fs.readFileSync(path.join(__dirname, Main.USAGE_FILE), {encoding: "ascii", flag: "r" }));
     }
     
     protected printV() {
