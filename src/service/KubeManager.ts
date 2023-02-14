@@ -68,6 +68,7 @@ export default class KubeManager {
                 }
             }
             const priorityClassName: string | undefined | null = this.settings.job.priorityClassName;
+            const gpus = props.gpu ? {[this.settings.job.gpuResName]: "1"} : null;
             job.spec = {
                 backoffLimit: 0,
                 template: {
@@ -92,7 +93,7 @@ export default class KubeManager {
                                     limits: {
                                         cpu: `${this.settings.job.limits.cpu * 1000}m`,
                                         memory: `${this.settings.job.limits.memory}Gi`,
-                                        //[this.settings.job.gpuResName]: props.gpu ? "1" : "0"
+                                        ...gpus && {...gpus}
                                     }
                                 }
                             }
