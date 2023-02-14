@@ -35,6 +35,7 @@ export interface SecurityContext {
 export interface Job {
 
     defaultImage: string;
+    imagePrefix?: string | null;
     gpuResName: string;
     userConfigmap: string | null | undefined,
     priorityClassName?: string | null;

@@ -49,7 +49,8 @@ export default class KubeManager {
             
             console.log(`Parameters sent to the job's container: ${JSON.stringify(props.command)}`);
             const jn: string = props.jobName ?? `job-${uuidv4()}`;
-            const cont = props.image ?? this.settings.job.defaultImage;
+            const cont = (this.settings.job?.imagePrefix ?? "") + (props.image ?? this.settings.job.defaultImage);
+            console.log(`Using image '${cont}'`);
             console.log("Preparing volumes...");
             const [volumes, volumeMounts] = await this.prepareJobVolumes();
             let job: V1Job = new V1Job();

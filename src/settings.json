@@ -3,6 +3,7 @@
     "sharedConfigmap": "jobman-jobs-config",
     "job": {
         "defaultImage": "default",
+        "imagePrefix": null,
         "gpuResName": "nvidia.com/gpu",
         "userConfigmap": null,
         "datasetsEnvVar": "CHAIMELEON_DATASETS",
