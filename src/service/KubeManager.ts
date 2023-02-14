@@ -2,6 +2,7 @@ import { KubeConfig, BatchV1Api, V1Job, V1JobStatus, V1DeleteOptions, Watch, Cor
 import { v4 as uuidv4 }  from "uuid";
 import log from "loglevel";
 import fetch, { RequestInit, Response } from "node-fetch";
+import https from "https";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -47,7 +48,7 @@ export default class KubeManager {
             }
             
             console.log(`Parameters sent to the job's container: ${JSON.stringify(props.command)}`);
-            const jn: string = props.jobName ?? `job.${uuidv4()}`;
+            const jn: string = props.jobName ?? `job-${uuidv4()}`;
             const cont = props.image ?? this.settings.job.defaultImage;
             console.log("Preparing volumes...");
             const [volumes, volumeMounts] = await this.prepareJobVolumes();
@@ -78,7 +79,7 @@ export default class KubeManager {
                         ...volumes && {volumes},
                         containers: [
                             {
-                                name: cont,
+                                name: `container-${uuidv4()}`,
                                 image: cont,
                                 command: props.command ? props.command :  ["/bin/sh", "-c", "echo 'No command provided to container"],
                                 ...volumeMounts && {volumeMounts},
@@ -154,7 +155,10 @@ export default class KubeManager {
     public async images(): Promise<KubeOpReturn<ImageDetails[]>> {
         const reposUrl: string = `${this.settings.harbor.url}/api/v2.0/projects/${this.settings.harbor.project}/repositories`;
         console.log(`Getting repos from ${reposUrl}`);
-        const response: Response = await this.fetchCustom(reposUrl);
+        const agent = new https.Agent({
+            rejectUnauthorized: false,
+          });
+        const response: Response = await this.fetchCustom(reposUrl, {agent});
         const result: ImageDetails[] = [];
         if (response.ok) {
             const prjRepos: HarborRepository[] = await response.json() as HarborRepository[];
@@ -165,7 +169,7 @@ export default class KubeManager {
                 result.push({name, tags})
                 
                 const artsUrl: string = `${reposUrl}/${name}/artifacts`;
-                const rArtifacts: Response = await this.fetchCustom(artsUrl);
+                const rArtifacts: Response = await this.fetchCustom(artsUrl, {agent});
                 if (rArtifacts.ok) {
                     const arts: HarborRespositoryArtifact[] = await rArtifacts.json() as HarborRespositoryArtifact[];
                     for (const art of arts ) {
