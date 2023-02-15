@@ -5,6 +5,8 @@ import { exit } from "node:process";
 import fs from "node:fs";
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { marked } from "marked";
+import TerminalRenderer from "marked-terminal";
 
 import DisplayService from "./service/DisplayService.js";
 import ParameterException from './model/exception/ParameterException.js';
@@ -19,7 +21,7 @@ export enum Cmd {
 
 export class Main {
 
-    public static readonly USAGE_FILE: string = "usage.txt";
+    public static readonly USAGE_FILE: string = "usage.md";
 
     protected args: string[];
 
@@ -135,8 +137,12 @@ export class Main {
     }
     
     protected printH() {
+        marked.setOptions({
+            // Define custom renderer
+            renderer: new TerminalRenderer()
+          });
         const __dirname: string = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-        console.info(fs.readFileSync(path.join(__dirname, Main.USAGE_FILE), {encoding: "ascii", flag: "r" }));
+        console.log(marked(fs.readFileSync(path.join(__dirname, Main.USAGE_FILE), {encoding: "ascii", flag: "r" })));
     }
     
     protected printV() {
