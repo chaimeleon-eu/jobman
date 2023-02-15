@@ -382,10 +382,12 @@ export default class KubeManager {
                     case "unknown": return EJobStatus.Unknown;
                     default: throw new UnhandledValueException(`Unhandled pod status '${podPhase}.`);
                 }
-            } else if (stat.active === 0 && stat.succeeded && stat.succeeded >= 1) {
+            } else if (!stat.active && stat.succeeded && stat.succeeded >= 1) {
                 return EJobStatus.Succeeded;
-            } else if (stat.active === 0 && stat.failed && stat.failed >= 1) {
+            } else if (!stat.active && stat.failed && stat.failed >= 1) {
                 return EJobStatus.Failed;
+            }  else if (stat.active) {
+                return EJobStatus.Waiting;
             } else {
                 return EJobStatus.Unknown;
             }
