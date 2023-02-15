@@ -1,0 +1,44 @@
+{
+    "sharedNamespace": "zz-shared",
+    "sharedConfigmap": "jobman-jobs-config",
+    "job": {
+        "defaultImage": "default",
+        "imagePrefix": null,
+        "gpuResName": "nvidia.com/gpu",
+        "userConfigmap": null,
+        "datasetsEnvVar": "CHAIMELEON_DATASETS",
+        "priorityClassName": null,
+        "securityContext": {
+            "runAsUser": 0,
+            "runAsGroup": 0,
+            "fsGroup": 0,
+            "supplementalGroups": []
+        },
+        "mountPoints": {
+            "datalake": null,
+            "persistent_home": null,
+            "persistent_shared_folder": null,
+            "datasets": null
+        },
+        "affinity": {
+            "cpu": "NODE_WITH_CPUS_NO_GPU",
+            "gpu": "NODE WITH GPU"
+        },
+        "requests": {
+            "cpu": 1,
+            "memory": 1
+        },
+        "limits": {
+            "cpu": 1,
+            "memory": 1
+        }
+    },
+    "kubeConfig": {
+        "type": "file",
+        "file": "/kube_config.json"
+    },
+    "harbor": {
+        "url": "https://harbor.chaimeleon-eu.i3m.upv.es",
+        "project": "chaimeleon-library-batch"
+    }
+}

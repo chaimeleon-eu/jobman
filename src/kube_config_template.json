@@ -1,0 +1,31 @@
+{
+  "apiVersion": "v1",
+  "kind": "Config",
+  "current-context": "<current_context>",
+  "contexts": [
+    {
+      "name": "foo-context",
+      "context": {
+        "cluster": "<cluster_defined_bellow>",
+        "user": "<user_defined_bellow>"
+      }
+    }
+  ],
+  "clusters": [
+    {
+      "name": "<name_id_this_cluster>",
+      "cluster": {
+        "server": "<server_URL>"
+      }
+    }
+  ],
+  "users": [
+    {
+      "name": "<name_id_for_this_user>",
+      "user": {
+        "password": "<actual_cluster_user password>",
+        "username": "<actual_cluster_user_name>"
+      }
+    }
+  ]
+}
