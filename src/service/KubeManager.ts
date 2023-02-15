@@ -189,9 +189,9 @@ export default class KubeManager {
         return new KubeOpReturn(KubeOpReturnStatus.Error, response.statusText, result);
     }
 
-    public async details(jobName: string | undefined = undefined): Promise<KubeOpReturn<IJobInfo | null>> {
-        const r: KubeOpReturn<V1Job[]> = (await this.getJobsList(this.getNamespace()));
-        return new KubeOpReturn(r.status, r.message, null);
+    public async details(jobName: string): Promise<KubeOpReturn<V1Job>> {
+        const r: V1Job = await (await this.k8sApi.readNamespacedJob(jobName, this.getNamespace())).body;
+        return new KubeOpReturn(KubeOpReturnStatus.Success, undefined, r);
     }
 
     public async log(jobName: string, follow: boolean | undefined = false, tail: number | undefined = undefined): 

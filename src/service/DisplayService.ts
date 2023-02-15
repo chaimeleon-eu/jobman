@@ -88,7 +88,10 @@ export default class DisplayService {
             .catch(e => this.simpleMsg(new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null)));
     }
 
-    public details(jobName: string | null | undefined): void {
+    public details(jobName: string): void {
+        this.km.details(jobName)
+            .then(r => this.simpleMsg(r, () => console.dir(r.payload, {depth: null})))
+            .catch(e => this.simpleMsg(new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null)));
 
     }
 
