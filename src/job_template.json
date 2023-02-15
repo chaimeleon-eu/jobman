@@ -1,0 +1,30 @@
+{
+    "apiVersion": "batch/v1",
+    "kind": "Job",
+    "metadata": {
+        "name": "template_job",
+        "namespace": null
+    },
+    "name": null,
+    "spec": {
+        "template": {
+            "spec": {
+                "containers": [
+                    {
+                        "name": null,
+                        "image": null,
+                        "command": null,
+                        "resources": {
+                            "requests": {
+                                "cpu": null,
+                                "memory": null
+                            }
+                        }
+                    }
+                ],
+                "restartPolicy": "Never"
+            }
+        }
+    },
+    "backoffLimit": 4
+}
