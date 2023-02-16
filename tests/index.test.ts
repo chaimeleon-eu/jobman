@@ -34,11 +34,11 @@ test("submit called", () => {
     main.run();
     expect(main.execCmdParams).toStrictEqual({ cmd: Cmd.Submit, ccp: null, payload: {
         jobName: undefined,
-        container: undefined,
+        command: [],
         gpu: undefined,
+        image: undefined,
         cpus: undefined,
-        memory: undefined,
-        command: '--'
+        memory: undefined
     } });
 });
 
