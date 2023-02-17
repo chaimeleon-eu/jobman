@@ -5,15 +5,16 @@
         "extends": "@tsconfig/node18-strictest-esm/tsconfig.json",
         "display": "Node 18 + ESM + Strict(est)",
         "compilerOptions": {
+          "allowSyntheticDefaultImports": true,
           "watch": false,
           "sourceMap": true,
            "outDir": "./dist/",
            "rootDir": "src",
           "lib": [
-            "es2022"
+            "ES2022"
           ],
-          "module": "ESNext",
-          "target": "es2022",
+          "module": "ES2022",
+          "target": "ES2020",
           "strict": true,
           "esModuleInterop": true,
           "skipLibCheck": true,

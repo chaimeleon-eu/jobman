@@ -27,13 +27,17 @@
     "ts-node": "^10.9.1",
     "tslib": "^2.4.1",
     "typescript": "^4.6.3",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "babel-plugin-transform-import-meta": "^2.2.0"
   },
+  "plugins": [
+    "babel-plugin-transform-import-meta"
+  ],
   "scripts": {
     "start": "ts-node-esm src/index.ts",
     "prod": "node dist/index.js",
     "dev": "nodemon --exec 'npm start'",
-    "test": "jest"
+    "test": "NODE_OPTIONS=--experimental-vm-modules npx jest"
   },
   "repository": {
     "type": "git",
