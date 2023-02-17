@@ -54,7 +54,7 @@ The application' settings include a default image name/tag used if the -i/--imag
 
 - now suppose you want to launch something more complex, such as a tensorflow application that needs a gpu using an image called __ubuntu_python_tensorflow:3.1cuda11__; pass the -e/--enable-gpu flag to request a GPU
 
-```jobman submit -i ubuntu_python_tensorflow:3.1cuda11 -- python3 -c "exec(\"from tensorflow.python.client import device_lib\ndevice_lib.list_local_devices()\")"```
+```jobman submit -i ubuntu_python_tensorflow:3.1cuda11 -e -- python3 -c "exec(\"from tensorflow.python.client import device_lib\ndevice_lib.list_local_devices()\")"```
 
 
 ### List existing jobs
