@@ -2,14 +2,18 @@ import { createRequire } from "node:module";
 import util  from 'node:util';
 import ImageDetails from "../model/ImageDetails.js";
 import JobInfo from "../model/JobInfo.js";
-//import ImageDetails from "../model/ImageDetails.js";
 const require = createRequire(import.meta.url);
 const { Table } = require('console-table-printer');
 
 import { KubeOpReturn, KubeOpReturnStatus } from "../model/KubeOpReturn.js";
 import { Settings } from "../model/Settings.js";
-import SubmitProps from "../model/SubmitProps.js";
+import SubmitProps from "../model/args/SubmitProps.js";
 import KubeManager from "./KubeManager.js";
+import DetailsProps from "../model/args/DetailsProps.js";
+import LogProps from "../model/args/LogProps.js";
+import DeleteProps from "../model/args/DeleteProps.js";
+
+type SimpleMsgCallbFunction = (...args: any[]) => void;
 
 
 export default class DisplayService {
@@ -88,27 +92,27 @@ export default class DisplayService {
             .catch(e => this.simpleMsg(new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null)));
     }
 
-    public details(jobName: string): void {
-        this.km.details(jobName)
+    public details(props: DetailsProps): void {
+        this.km.details(props)
             .then(r => this.simpleMsg(r, () => console.dir(r.payload, {depth: null})))
             .catch(e => this.simpleMsg(new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null)));
 
     }
 
-    public log(jobName: string): void {
-        this.km.log(jobName)
+    public log(props: LogProps): void {
+        this.km.log(props)
             .then(r => this.simpleMsg(r, () => console.log("----Log begin----\n\n", "\x1b[36m", r.payload, "\x1b[0m", "\n----Log end----")))
             .catch(e => this.simpleMsg(new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null)));
 
     }
 
-    public delete(jobName: string): void {
-        this.km.delete(jobName)
+    public delete(props: DeleteProps): void {
+        this.km.delete(props)
             .then(r => this.simpleMsg(r))
             .catch(e => this.simpleMsg(new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null)));
     }
 
-    protected simpleMsg(op: KubeOpReturn<any>, displayFunc: Function | undefined = undefined): void {
+    protected simpleMsg(op: KubeOpReturn<any>, displayFunc: SimpleMsgCallbFunction | undefined = undefined): void {
         if (op.isOk()) {
             if (displayFunc) {
                 displayFunc(op.payload);

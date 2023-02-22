@@ -1,5 +1,4 @@
 
-//import log from "loglevel";
 import { parseArgs } from 'node:util';
 import { exit } from "node:process";
 import fs from "node:fs";
@@ -12,12 +11,14 @@ import DisplayService from "./service/DisplayService.js";
 import ParameterException from './model/exception/ParameterException.js';
 import { Settings } from './model/Settings.js';
 import SettingsManager from './service/SettingsManager.js';
+import KubeManagerProps from './model/args/KubeManagerProps.js';
 
-const ARGS_PARSING_ERROR_MSG: string = "Error parsing the arguments, please check the help by passing -h/--help as first arg of the application.";
+const ARGS_PARSING_ERROR_MSG = "Error parsing the arguments, please check the help by passing -h/--help as first arg of the application.";
 
 export enum Cmd {
     Images, Submit, List, Details, Log, Delete
 }
+
 
 export class Main {
 
@@ -70,7 +71,7 @@ export class Main {
 
     protected parseCmdArgs(cmdArg: string, sp: string | null, cmdArgs: string[]): void {
         switch (cmdArg) {
-            case "submit": 
+            case "submit": { 
                 const cmdPos = cmdArgs.indexOf("--");
                 if (cmdPos !== -1) {
                     const tmp = cmdArgs.slice(0, cmdPos);
@@ -92,46 +93,50 @@ export class Main {
                     throw new ParameterException("Missing container command separator '--'. It is needed to separate jobman's args and the actual command  passed to the container.");
                 }
                 break;
-            case "list": this.execCmd(Cmd.List, sp, null); break;
-            case "images":  this.execCmd(Cmd.Images, sp, null); break;
-            case "details": 
-                const { values: dv } = parseArgs({ args: cmdArgs, options: {
-                    "job-name": { type: "string", short: "j" }
-                }});
-                this.execCmd(Cmd.Details, sp, { jobName: dv["job-name"] }); 
-                break;
-            case "log": 
-                const lv = parseArgs({ args: cmdArgs, options: {
-                    "job-name": { type: "string", short: "j" }
-                }});
-                if (lv.values["job-name"])
-                    this.execCmd(Cmd.Log, sp, { jobName: lv.values["job-name"] });
-                else
-                    throw new ParameterException(`Please specify the job name for the '${cmdArg}' command.`);
-                break;
-            case "delete": 
-                const { values: cv } = parseArgs({ args: cmdArgs, options: {
-                    "job-name": { type: "string", short: "j" }
-                }});
-                if (cv["job-name"])
-                    this.execCmd(Cmd.Delete, sp, { jobName: cv["job-name"] });
-                else
-                    throw new ParameterException(`Please specify the job name for the '${cmdArg}' command.`);
-                break;
+            }
+            case "list": this.execCmd(Cmd.List, sp, {}); break;
+            case "images":  this.execCmd(Cmd.Images, sp, {}); break;
+            case "details": {
+                    const { values: dv } = parseArgs({ args: cmdArgs, options: {
+                        "job-name": { type: "string", short: "j" }
+                    }});
+                    this.execCmd(Cmd.Details, sp, { jobName: dv["job-name"] }); 
+                    break;
+                }
+            case "log": {
+                    const lv = parseArgs({ args: cmdArgs, options: {
+                        "job-name": { type: "string", short: "j" }
+                    }});
+                    if (lv.values["job-name"])
+                        this.execCmd(Cmd.Log, sp, { jobName: lv.values["job-name"] });
+                    else
+                        throw new ParameterException(`Please specify the job name for the '${cmdArg}' command.`);
+                    break;
+                }
+            case "delete": {
+                    const { values: cv } = parseArgs({ args: cmdArgs, options: {
+                        "job-name": { type: "string", short: "j" }
+                    }});
+                    if (cv["job-name"])
+                        this.execCmd(Cmd.Delete, sp, { jobName: cv["job-name"] });
+                    else
+                        throw new ParameterException(`Please specify the job name for the '${cmdArg}' command.`);
+                    break;
+                }
             default: throw new ParameterException(`Unknown command '${cmdArg}'. Please check the help section.`);
         }
     }
 
-    protected execCmd(cmd: Cmd, sp: string | null, payload: any): void { 
+    protected execCmd(cmd: Cmd, sp: string | null, payload: KubeManagerProps): void { 
         const s: Settings = new SettingsManager(sp).settings;
-        let ds: DisplayService = new DisplayService(s);
+        const ds: DisplayService = new DisplayService(s);
         switch (cmd) {
             case Cmd.Images: ds.images(); break;
             case Cmd.Submit: ds.submit(payload); break;
             case Cmd.List: ds.list(); break;
-            case Cmd.Details: ds.details(payload.jobName); break;
-            case Cmd.Log: ds.log(payload.jobName); break;
-            case Cmd.Delete: ds.delete(payload.jobName); break;
+            case Cmd.Details: ds.details(payload); break;
+            case Cmd.Log: ds.log(payload); break;
+            case Cmd.Delete: ds.delete(payload); break;
             default: console.error(ARGS_PARSING_ERROR_MSG);
         }
     }
@@ -156,7 +161,7 @@ export class Main {
 }
 
 export function main(args: string[]): number {
-    let main = new Main(args);
+    const main = new Main(args);
     try {
         return main.run();
     } catch (e) {
