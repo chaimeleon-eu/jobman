@@ -21,6 +21,7 @@ import KubeException from '../model/exception/KubeException.js';
 import DetailsProps from '../model/args/DetailsProps.js';
 import LogProps from '../model/args/LogProps.js';
 import DeleteProps from '../model/args/DeleteProps.js';
+import ImageDetailsProps from '../model/args/ImageDetailsProps.js';
 
 
 
@@ -153,12 +154,38 @@ export default class KubeManager {
         }
     }
 
+    public async imageDetails(props: ImageDetailsProps): Promise<KubeOpReturn<string | null>> {
+        if (!props.image) {
+            return new KubeOpReturn(KubeOpReturnStatus.Error, "Please specify an image name", null);
+        }
+        const reposUrl = `${this.settings.harbor.url}/api/v2.0/projects/${this.settings.harbor.project}/repositories`;
+        console.log(`Getting repos from ${reposUrl}`);
+        const agent = new https.Agent({
+            rejectUnauthorized: false,
+          });
+        const response: Response = await this.fetchCustom(reposUrl, {agent});
+        if (response.ok) {
+            const prjRepos: HarborRepository[] = await response.json() as HarborRepository[];
+            for (const repo of prjRepos) {
+                // Get repo name, remove project name 
+                const name: string = repo.name.substring(repo.name.indexOf("/") + 1, repo.name.length);
+                if (name === props.image) {
+                    return new KubeOpReturn(KubeOpReturnStatus.Success, undefined, repo.description);
+                }
+            }
+        } else {
+            console.error(`Unable to load repositories from '${reposUrl}'`);
+        }
+        return new KubeOpReturn(KubeOpReturnStatus.Error, response.statusText, null);
+    }
+
     public async images(): Promise<KubeOpReturn<ImageDetails[]>> {
         const reposUrl = `${this.settings.harbor.url}/api/v2.0/projects/${this.settings.harbor.project}/repositories`;
         console.log(`Getting repos from ${reposUrl}`);
         const agent = new https.Agent({
             rejectUnauthorized: false,
           });
+          
         const response: Response = await this.fetchCustom(reposUrl, {agent});
         const result: ImageDetails[] = [];
         if (response.ok) {
@@ -166,8 +193,9 @@ export default class KubeManager {
             for (const repo of prjRepos) {
                 // Get repo name, remove project name 
                 const name: string = repo.name.substring(repo.name.indexOf("/") + 1, repo.name.length);
+                const desc: string = repo.description;
                 const tags: string[] = [];
-                result.push({name, tags})
+                result.push({name, tags, desc})
                 
                 const artsUrl = `${reposUrl}/${name}/artifacts`;
                 const rArtifacts: Response = await this.fetchCustom(artsUrl, {agent});

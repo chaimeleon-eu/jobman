@@ -44,6 +44,14 @@ If you have a Harbor instance deployed to manage the images you use on Kubernete
 
 ```jobman images```
 
+### Obtain the description of an image on Harbor
+
+You can get the description of an image stored on Harbor using the **image-details** command. 
+You have to specify the image name using the **-i** or **--image** argument following the command. 
+The tag of the image is not required, as Harbor stores the description per image not per image/tag combo.
+
+```jobman image-details -i ubuntu_python_tensorflow```
+
 ### Submit jobs
 To actually deploy a job on the Kubernetes cluster, use the **submit** command.
 The application' settings include a default image name/tag used if the -i/--image argument is not present.
@@ -52,7 +60,11 @@ The application' settings include a default image name/tag used if the -i/--imag
 
 ```jobman submit -i alpine -- ls -al /```
 
-- now suppose you want to launch something more complex, such as a tensorflow application that needs a gpu using an image called __ubuntu_python_tensorflow:3.1cuda11__; pass the -e/--enable-gpu flag to request a GPU
+- list the available GPUs in a pod launched with GPU support, using the `nvidia-smi` utility
+
+```jobman submit -i ubuntu_python_tensorflow:3.1cuda11 -e -- sh -c 'nvidia-smi -L'```
+
+- suppose you want to launch something more complex, such as a tensorflow application that needs a gpu using an image called __ubuntu_python_tensorflow:3.1cuda11__; pass the -e/--enable-gpu flag to request a GPU
 
 ```jobman submit -i ubuntu_python_tensorflow:3.1cuda11 -e -- python3 -c "exec(\"from tensorflow.python.client import device_lib\ndevice_lib.list_local_devices()\")"```
 

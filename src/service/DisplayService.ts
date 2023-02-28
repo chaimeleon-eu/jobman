@@ -1,4 +1,6 @@
 import { createRequire } from "node:module";
+import { marked } from "marked";
+import TerminalRenderer from "marked-terminal";
 import util  from 'node:util';
 import ImageDetails from "../model/ImageDetails.js";
 import JobInfo from "../model/JobInfo.js";
@@ -12,6 +14,7 @@ import KubeManager from "./KubeManager.js";
 import DetailsProps from "../model/args/DetailsProps.js";
 import LogProps from "../model/args/LogProps.js";
 import DeleteProps from "../model/args/DeleteProps.js";
+import ImageDetailsProps from "../model/args/ImageDetailsProps.js";
 
 type SimpleMsgCallbFunction = (...args: any[]) => void;
 
@@ -53,6 +56,17 @@ export default class DisplayService {
                     t.printTable();
                 }))
                 .catch(e => this.simpleMsg(new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null)));
+    }
+
+    public imageDetails(props: ImageDetailsProps): void {
+        marked.setOptions({
+            // Define custom renderer
+            renderer: new TerminalRenderer()
+          });
+        this.km.imageDetails(props)
+            .then(r => this.simpleMsg(r,  () => console.log(marked(r.payload ?? ""))))
+            .catch(e => this.simpleMsg(new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null)));
+
     }
 
     public submit(props: SubmitProps): void {

@@ -16,7 +16,7 @@ import KubeManagerProps from './model/args/KubeManagerProps.js';
 const ARGS_PARSING_ERROR_MSG = "Error parsing the arguments, please check the help by passing -h/--help as first arg of the application.";
 
 export enum Cmd {
-    Images, Submit, List, Details, Log, Delete
+    Images, ImageDetails, Submit, List, Details, Log, Delete
 }
 
 
@@ -96,11 +96,18 @@ export class Main {
             }
             case "list": this.execCmd(Cmd.List, sp, {}); break;
             case "images":  this.execCmd(Cmd.Images, sp, {}); break;
+            case "image-details": {
+                const { values: dv } = parseArgs({ args: cmdArgs, options: {
+                    image: { type: "string", short: "i" }
+                }});
+                this.execCmd(Cmd.ImageDetails, sp, { image: dv["image"] }); 
+                break;
+            }
             case "details": {
                     const { values: dv } = parseArgs({ args: cmdArgs, options: {
                         "job-name": { type: "string", short: "j" }
                     }});
-                    this.execCmd(Cmd.Details, sp, { jobName: dv["job-name"] }); 
+                    this.execCmd(Cmd.ImageDetails, sp, { jobName: dv["job-name"] }); 
                     break;
                 }
             case "log": {
@@ -132,6 +139,7 @@ export class Main {
         const ds: DisplayService = new DisplayService(s);
         switch (cmd) {
             case Cmd.Images: ds.images(); break;
+            case Cmd.ImageDetails: ds.imageDetails(payload); break;
             case Cmd.Submit: ds.submit(payload); break;
             case Cmd.List: ds.list(); break;
             case Cmd.Details: ds.details(payload); break;

@@ -1,4 +1,4 @@
-import KubeManagerProps from "./KubeManagerProps";
+import KubeManagerProps from "./KubeManagerProps.js";
 
 export default interface SubmitProps extends KubeManagerProps{
     jobName?: string;
