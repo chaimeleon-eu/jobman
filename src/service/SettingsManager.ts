@@ -7,7 +7,7 @@ import { Settings } from "../model/Settings.js";
 
 export default class SettingsManager {
 
-    public static USER_HOME_PATH: string = ".jobman/settings.json";
+    public static USER_HOME_PATH = ".jobman/settings.json";
 
     private _settings: Settings;
 
@@ -19,8 +19,8 @@ export default class SettingsManager {
             const uH: string = path.join(homedir(), SettingsManager.USER_HOME_PATH);
             if (fs.existsSync(uH)) {
                 try {
-                    let settingsHome: Settings = JSON.parse(fs.readFileSync(uH, 'utf8'));
-                    console.log(`Merging settings found in user's home at '${uH}' into global settings...`);
+                    const settingsHome: Settings = JSON.parse(fs.readFileSync(uH, 'utf8'));
+                    //console.log(`Merging settings found in user's home at '${uH}' into global settings...`);
                     Object.assign(this._settings, settingsHome);
                 } catch (e) {
                     console.error(e);
