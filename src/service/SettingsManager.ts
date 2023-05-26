@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { homedir } from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import deepmerge from "deepmerge";
 
 import { Settings } from "../model/Settings.js";
 
@@ -21,7 +22,8 @@ export default class SettingsManager {
                 try {
                     const settingsHome: Settings = JSON.parse(fs.readFileSync(uH, 'utf8'));
                     //console.log(`Merging settings found in user's home at '${uH}' into global settings...`);
-                    Object.assign(this._settings, settingsHome);
+                    //Object.assign(this._settings, settingsHome);
+                    this._settings = deepmerge(this._settings, settingsHome);
                 } catch (e) {
                     console.error(e);
                 }

@@ -1,5 +1,6 @@
 {
   "name": "jobman",
+  "version": "1.2.1-BETA",
   "main": "./dist/index.ts",
   "exports": {
     "default": "./src/"
@@ -7,7 +8,6 @@
   "bin": {
     "jobman": "./bin/jobman"
   },
-  "version": "1.1.2-ALPHA",
   "description": "The Kubernetes job manager",
   "dependencies": {
     "@kubernetes/client-node": "^0.18.1",
@@ -19,6 +19,7 @@
     "@types/uuid": "^9.0.0",
     "babel-plugin-transform-import-meta": "^2.2.0",
     "console-table-printer": "^2.11.1",
+    "deepmerge": "^4.3.1",
     "jest": "^29.0.5",
     "loglevel": "^1.8.1",
     "marked": "^4.2.12",

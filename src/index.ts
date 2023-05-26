@@ -78,15 +78,12 @@ export class Main {
                     const { values } = parseArgs({ args: tmp, options: {
                         "job-name": { type: "string", short: "j" },
                         image: { type: "string", short: "i" },
-                        "enable-gpu": { type: "boolean", short: "e" },
-                        cpus: { type: "string", short: "t" },
-                        memory: { type: "string", short: "m" }
+                        resources: { type: "string", short: "r" }
                     }
                 });
                 this.execCmd(Cmd.Submit, sp, {
-                        jobName: values["job-name"], image: values.image, gpu: values["enable-gpu"], 
-                        cpus: values.cpus ? Number(values.cpus) : undefined, 
-                        memory: values.memory ? Number(values.memory) : undefined,
+                        jobName: values["job-name"], image: values.image, 
+                        resources: values.resources,
                         command: cmdArgs.slice(cmdPos + 1, cmdArgs.length)
                     });
                 } else {
@@ -107,7 +104,7 @@ export class Main {
                     const { values: dv } = parseArgs({ args: cmdArgs, options: {
                         "job-name": { type: "string", short: "j" }
                     }});
-                    this.execCmd(Cmd.ImageDetails, sp, { jobName: dv["job-name"] }); 
+                    this.execCmd(Cmd.Details, sp, { jobName: dv["job-name"] }); 
                     break;
                 }
             case "log": {

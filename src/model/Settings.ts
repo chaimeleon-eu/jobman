@@ -1,4 +1,23 @@
 
+// export interface KubeResourcesReqLim {
+//     memory?: string;
+//     cpu?: string;
+//     [key: string]: string;
+// }
+
+export interface KubeResources {
+    name: string;
+    resources: {
+        requests?: {
+            [key: string]: string
+        },
+        limits?: {
+            [key: string]: string
+        }
+    };
+
+}
+
 export enum KubeConfigType {
     default = "default", 
     cluster = "cluster",
@@ -11,17 +30,17 @@ export interface Affinity {
     gpu: string;
 }
 
-export interface LimitsRequests {
+export interface Resources {
+    default?: string | null;
+    predefined: KubeResources[];
 
-    cpu: number;
-    memory: number;
 }
 
 export interface MountPoints {
     datalake: string,
     persistent_home: string,
-    persistent_shared_folder: string,
-    datasets: string
+    persistent_shared_folder: string;
+    datasets: string;
 
 }
 
@@ -34,16 +53,14 @@ export interface SecurityContext {
 
 export interface Job {
 
-    defaultImage: string;
+    defaultImage?: string;
     imagePrefix?: string | null;
-    gpuResName: string;
     userConfigmap: string | null | undefined,
     priorityClassName?: string | null;
     securityContext?: SecurityContext | null;
-    mountPoints: MountPoints,
-    affinity: Affinity;
-    limits: LimitsRequests;
-    requests: LimitsRequests;
+    mountPoints?: MountPoints;
+    //affinity: Affinity;
+    resources?: Resources;
 }
 
 export interface KubeConfigLocal {
@@ -58,11 +75,16 @@ export interface HarborConfig {
 
 }
 
+export interface JobsQueue {
+    namespace: string;
+    configmap: string;
+}
+
 export interface Settings {
     sharedNamespace: string;
     sharedConfigmap: string;
+    jobsQueue: JobsQueue;
     job: Job;
     kubeConfig: KubeConfigLocal;
     harbor: HarborConfig;
-
 }

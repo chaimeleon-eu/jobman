@@ -22,6 +22,7 @@ import DetailsProps from '../model/args/DetailsProps.js';
 import LogProps from '../model/args/LogProps.js';
 import DeleteProps from '../model/args/DeleteProps.js';
 import ImageDetailsProps from '../model/args/ImageDetailsProps.js';
+import KubeResourcesPrep from './KubeResourcesPrep.js';
 
 
 
@@ -68,7 +69,6 @@ export default class KubeManager {
                     }
                 }
                 const priorityClassName: string | undefined | null = this.settings.job.priorityClassName;
-                const gpus = props.gpu ? {[this.settings.job.gpuResName]: "1"} : null;
                 job.spec = {
                     backoffLimit: 0,
                     template: {
@@ -85,17 +85,7 @@ export default class KubeManager {
                                     image: cont,
                                     command: props.command ? props.command :  ["/bin/sh", "-c", "echo 'No command provided to container"],
                                     ...volumeMounts && {volumeMounts},
-                                    resources: {
-                                        requests: {
-                                            cpu: `${(props.cpus ? Number(props.cpus) : this.settings.job.requests.cpu) * 1000}m`,
-                                            memory: `${(props.memory ? Number(props.memory) : this.settings.job.requests.memory)}Gi`
-                                        }, 
-                                        limits: {
-                                            cpu: `${this.settings.job.limits.cpu * 1000}m`,
-                                            memory: `${this.settings.job.limits.memory}Gi`,
-                                            ...gpus && {...gpus}
-                                        }
-                                    }
+                                    resources: KubeResourcesPrep.getKubeResources(this.settings, props.resources)
                                 }
                             ],
                             restartPolicy: "Never",
@@ -132,17 +122,19 @@ export default class KubeManager {
     public async list(): Promise<KubeOpReturn<IJobInfo[] | null>> {
         try {
             const r: KubeOpReturn<V1Job[]> = (await this.getJobsList(this.getNamespace()));
-
+            // const jobsQueue: V1ConfigMap = await this.getConfigmap(
+            //     this.settings.jobsQueue.configmap, this.settings.jobsQueue.namespace);
             if (r.payload) {
                 const res: JobInfo[] = [];
                 for (const e of r.payload) {
                     const jn = e.metadata?.name;
                     if (jn) {
                         res.push({ name: jn,
-                        uid: e.metadata?.uid,
-                        status: await this.getStatusJob(jn, e.status),
-                        dateLaunched: e.metadata?.creationTimestamp,
-                        position: 0});
+                            uid: e.metadata?.uid,
+                            status: await this.getStatusJob(jn, e.status),
+                            dateLaunched: e.metadata?.creationTimestamp,
+                            position: 0//jobsQueue?.data?.["jobs"]?.find(j => j.name === jn && j.user === this.getUsername())?.
+                        });
                     }
                 }
                 return new KubeOpReturn(KubeOpReturnStatus.Success, r.message, res);
@@ -270,14 +262,14 @@ export default class KubeManager {
         }
     }
 
-    protected async getConfigmap(configMapName: string): Promise<V1ConfigMap> {
-            return (await this.k8sCoreApi.readNamespacedConfigMap(configMapName, this.getNamespace())).body;
+    protected async getConfigmap(configMapName: string, namespace?: string): Promise<V1ConfigMap> {
+            return (await this.k8sCoreApi.readNamespacedConfigMap(configMapName, namespace ?? this.getNamespace())).body;
     }
 
     protected async prepareJobVolumes(): Promise<[V1Volume[] | undefined, V1VolumeMount[] | undefined]> {
         if (this.settings.job.userConfigmap) {
             const userConfigmap: V1ConfigMap = await this.getConfigmap(this.settings.job.userConfigmap );
-            if (userConfigmap) {
+            if (userConfigmap && this.settings.job.mountPoints) {
                 const vs: V1Volume[] = [
                     {
                         name: "datalake",
@@ -311,7 +303,7 @@ export default class KubeManager {
                 ];
                 // Mount datasets
                 const dirs: string[] = fs.readdirSync(this.settings.job.mountPoints.datasets)
-                    .filter((f: any) => fs.statSync(path.join(this.settings.job.mountPoints.datasets, f)).isDirectory());
+                    .filter((f: any) => fs.statSync(path.join(this.settings.job.mountPoints?.datasets ?? "", f)).isDirectory());
 
                 const pt: string | undefined = userConfigmap.data?.["datasets.path"];
                 if (pt) {

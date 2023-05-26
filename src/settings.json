@@ -1,10 +1,13 @@
 {
     "sharedNamespace": "zz-shared",
     "sharedConfigmap": "jobman-jobs-config",
+    "jobsQueue": {
+        "namespace": "zz-shared",
+        "configmap": "jobman-k8s-queue"
+    },
     "job": {
-        "defaultImage": "default",
+        "defaultImage": null,
         "imagePrefix": null,
-        "gpuResName": "nvidia.com/gpu",
         "userConfigmap": null,
         "datasetsEnvVar": "CHAIMELEON_DATASETS",
         "priorityClassName": null,
@@ -15,22 +18,15 @@
             "supplementalGroups": []
         },
         "mountPoints": {
-            "datalake": null,
-            "persistent_home": null,
-            "persistent_shared_folder": null,
-            "datasets": null
+            "datalake": "none",
+            "persistent_home": "none",
+            "persistent_shared_folder": "none",
+            "datasets": "none"
         },
-        "affinity": {
-            "cpu": "NODE_WITH_CPUS_NO_GPU",
-            "gpu": "NODE WITH GPU"
-        },
-        "requests": {
-            "cpu": 1,
-            "memory": 1
-        },
-        "limits": {
-            "cpu": 1,
-            "memory": 1
+        "resources": {
+            "default": "<preselect on of the resources flavor in the predefined section by its name>",
+            "tag": "<the tag key that will be added to the metadata along with the name of the chosen resources falvors, predefined or otherwise>",
+            "predefined": []
         }
     },
     "kubeConfig": {
