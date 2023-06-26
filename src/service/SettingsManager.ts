@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import { homedir } from 'os';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import deepmerge from "deepmerge";
 
 import { Settings } from "../model/Settings.js";
+import Util from "../Util.js";
 
 export default class SettingsManager {
 
@@ -14,8 +14,7 @@ export default class SettingsManager {
 
     public constructor(settingsPath: string | null | undefined) {
         if (!settingsPath) {
-            const __dirname: string = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-            this._settings = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'settings.json'), 'utf8'));
+            this._settings = JSON.parse(fs.readFileSync(path.resolve(Util.getDirName(), 'settings.json'), 'utf8'));
             // try to read from user's home
             const uH: string = path.join(homedir(), SettingsManager.USER_HOME_PATH);
             if (fs.existsSync(uH)) {
@@ -28,10 +27,10 @@ export default class SettingsManager {
                     console.error(e);
                 }
             } else {
-                console.log(`Settings not found in user's home at '${uH}'`);
+                //console.log(`Settings not found in user's home at '${uH}'`);
             }
         } else {
-            this._settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+            this._settings = JSON.parse(fs.readFileSync(path.resolve(Util.getExecDir(), settingsPath), 'utf-8'));
         }
     }
 

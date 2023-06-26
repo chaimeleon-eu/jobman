@@ -1,4 +1,4 @@
-import { KubeConfig, BatchV1Api, V1Job, V1JobStatus, V1DeleteOptions, Watch, CoreV1Api, V1PodList, HttpError, V1Pod, V1ConfigMap, V1CephFSVolumeSource, V1Volume, V1VolumeMount, V1PodSecurityContext } from '@kubernetes/client-node';
+import { KubeConfig, BatchV1Api, V1Job, V1JobStatus, V1DeleteOptions, Watch, CoreV1Api, V1PodList, HttpError, V1Pod, V1ConfigMap, V1CephFSVolumeSource, V1Volume, V1VolumeMount, V1PodSecurityContext, V1ResourceRequirements } from '@kubernetes/client-node';
 import { v4 as uuidv4 }  from "uuid";
 import log from "loglevel";
 import fetch, { RequestInit, Response } from "node-fetch";
@@ -10,7 +10,7 @@ import { IJobInfo, EJobStatus } from '../model/IJobInfo.js';
 import JobInfo from '../model/JobInfo.js';
 import ParameterException from '../model/exception/ParameterException.js';
 import SubmitProps from '../model/args/SubmitProps.js';
-import { KubeConfigLocal, KubeConfigType, SecurityContext, Settings } from '../model/Settings.js';
+import { KubeConfigLocal, KubeConfigType, KubeResources, SecurityContext, Settings } from '../model/Settings.js';
 //import NotImplementedException from '../model/exception/NotImplementedException.js';
 import { KubeOpReturn, KubeOpReturnStatus } from '../model/KubeOpReturn.js';
 import UnhandledValueException from '../model/exception/UnhandledValueException.js';
@@ -23,6 +23,8 @@ import LogProps from '../model/args/LogProps.js';
 import DeleteProps from '../model/args/DeleteProps.js';
 import ImageDetailsProps from '../model/args/ImageDetailsProps.js';
 import KubeResourcesPrep from './KubeResourcesPrep.js';
+import QueueResult from '../model/QueueResult.js';
+import QueueConfigMap from '../model/QueueConfigMap.js';
 
 
 
@@ -41,6 +43,70 @@ export default class KubeManager {
         this.watch = new Watch(this.clusterConfig);
     }
 
+    public async queue():  Promise<KubeOpReturn<Map<string, QueueResult> | null>> {
+        try {
+
+            const cm: V1ConfigMap = await this.getConfigmap(this.settings.jobsQueue.configmap, this.settings.jobsQueue.namespace);
+            if (cm) {
+                const queue: QueueConfigMap | null = cm.data?.[this.settings.jobsQueue.configmap] 
+                    ? JSON.parse(cm.data[this.settings.jobsQueue.configmap] ?? "") as QueueConfigMap : null;
+                const byLabel = new Map<string, QueueResult>();
+                if (queue) {
+                    for (const j of queue.jobs) {
+                        const cpu: string | undefined = j.resources.requests?.["cpu"];
+                        const memory: string | undefined = j.resources.requests?.["memory"];
+                        let gpu: number | undefined = 0;
+                        for (const v of this.settings.jobsQueue.gpuResources) {
+                            if (j.resources.requests?.[v]) {
+                                gpu += Number(j.resources.requests[v]);
+                            }
+                        }
+
+                        let flavor  = undefined;
+                        let cnt: QueueResult | undefined = undefined;
+                        let id: string | undefined = undefined;
+                        let isUserJob = false;
+                        if (j.namespace === this.getNamespace()) {
+                            isUserJob = true;
+                        }
+                        if (j.resources.flavor) {
+                            flavor = j.resources.flavor;
+                            id = flavor;
+                        } else {
+                            //flavor = "<no label>";//`unk-${uuidv4()}`
+                            id = `${cpu}/${memory}/${gpu}`;
+                        }
+                        cnt = byLabel.get(id);
+                        if (cnt) {
+                            cnt.count = cnt.count + 1;
+                            if (isUserJob) {
+                                cnt.userJobsCnt = cnt.userJobsCnt + 1;
+                            }
+                            byLabel.set(id, cnt);
+                        } else {
+                            byLabel.set(id, {
+                                id,
+                                flavor,
+                                count: 1,
+                                cpu, memory, gpu,
+                                userJobsCnt: isUserJob ? 1 : 0
+                            });
+                        }
+                        
+                        
+                    }
+                    return new KubeOpReturn(this.getStatusKubeOp(200), undefined, byLabel);
+                } else {
+                    return new KubeOpReturn(this.getStatusKubeOp(200), undefined, byLabel);
+                }
+            } else {
+                throw new KubeException(`Unable to retrieve configmap ${this.settings.jobsQueue.configmap}  from namespace ${this.settings.jobsQueue.namespace}`);
+            }
+        } catch (e) {
+            return this.handleKubeOpsError(e);
+        }
+    }
+
     public async submit(props: SubmitProps): Promise<KubeOpReturn<null>> {
         try {
             if (!props.image) {
@@ -49,6 +115,7 @@ export default class KubeManager {
                     null);
             } else {            
                 console.log(`Parameters sent to the job's container: ${JSON.stringify(props.command)}`);
+                const kr: KubeResources = KubeResourcesPrep.getKubeResources(this.settings, props.resources);
                 const jn: string = props.jobName ?? `job-${uuidv4()}`;
                 const cont = (this.settings.job?.imagePrefix ?? "") + (props.image ?? this.settings.job.defaultImage);
                 console.log(`Using image '${cont}'`);
@@ -57,7 +124,10 @@ export default class KubeManager {
                 const job: V1Job = new V1Job();
                 job.metadata = {
                     name: jn,
-                    namespace: this.getNamespace()
+                    namespace: this.getNamespace(),
+                    annotations: {
+                        [this.settings.job.resources.label]: kr.name
+                    }
                 }
                 job.kind = "Job";
                 const securityContext: SecurityContext | undefined | null = this.settings.job.securityContext;
@@ -85,7 +155,7 @@ export default class KubeManager {
                                     image: cont,
                                     command: props.command ? props.command :  ["/bin/sh", "-c", "echo 'No command provided to container"],
                                     ...volumeMounts && {volumeMounts},
-                                    resources: KubeResourcesPrep.getKubeResources(this.settings, props.resources)
+                                    resources: {...new V1ResourceRequirements(), ...kr.resources}
                                 }
                             ],
                             restartPolicy: "Never",
@@ -443,4 +513,5 @@ export default class KubeManager {
     protected fetchCustom(url: string, init?: RequestInit): Promise<Response> {
         return fetch(url, init);
     }
+    
 }

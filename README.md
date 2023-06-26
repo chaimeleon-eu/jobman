@@ -48,6 +48,9 @@ Check the full description of comand line arguments in the [usage.md](usage.md) 
 Flavors can be used by passing them as a command line argument for the **submit** command (check [usage.md](usage.md)).
 You can store a list of predefined flavors directly in the settings file, along with a default one that is used whenever no argument is passed with the **submit** command.
 
+Do not include private/sensitive information in the name of a flavor.
+It can be seen by others in the cluster.
+
 No gpu example with both requests and limits:
 
 ```
@@ -100,9 +103,34 @@ The tag of the image is not required, as Harbor stores the description per image
 
 ```jobman image-details -i ubuntu_python_tensorflow```
 
+### List the Kubernetes jobs queue
+
+If you want to see how many jobs with a certain requests configuration are active (waiting in the queue or already running), you can use the **queue** command.
+Currently, there is no distinction between different extend resources for GPUs.
+Therefore, you have have both Nvidia and AMD, defined by the keys "nvidia.com/gpu" and "amd.com/gpu" respectively, and you launch a job requesting both, **jobman** will sum their count and display it.
+You can use flavors to separate various configurations of the resources.
+
+Be careful when launching with your own flavors.
+If the name of the flavor is not unique, it can create conflicts within the platform.
+Should you name your flavor like an existing, predefined, cluster-wide available flavor, the platform may replace your actual resources configuration with a predefined one.
+This normally happens in a cluster that uses a specially defined Kubernetes operator to filter the jobs sent to the Kubernetes queue, and it is part of the security of multi-user environments.
+**jobman** cannot know what other flavors + resources configurations are available on other machines, therefore it doens't have the ability to stop you from using a name already in use by someone else for a different resources configuration.
+Conflicting flavor names + resources configurations result in the group algorithm of the **queue** command to report in erroneous information.
+
+The output is a table showing:
+
+- how many jobs with a certain resources configuration are curently active
+- how many of those jobs are yours
+- what resources configuration are those jobs requesting
+- which flavor are they using for their resources configuration (if any, __<no name>__ means the launched jobs' resources configuration has no name defined)
+
+```jobman queue```
+
 ### Submit jobs
 To actually deploy a job on the Kubernetes cluster, use the **submit** command.
 The application' settings include a default image name/tag used if the -i/--image argument is not present.
+
+Do not include private information in the name of the jobs, they can be viewed by others.
 
 - let's list the directories in the root of the job's container; we use the alpine:latest image, since we don't pass a full path to the image, Kubernetes assumes the default repository; for this job, we use a resources flavor without GPU support named "no-gpu"; the -- argument separates the command's arguments from those sent as a command to the job's container
 

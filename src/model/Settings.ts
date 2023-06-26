@@ -32,6 +32,7 @@ export interface Affinity {
 
 export interface Resources {
     default?: string | null;
+    label: string;
     predefined: KubeResources[];
 
 }
@@ -60,7 +61,7 @@ export interface Job {
     securityContext?: SecurityContext | null;
     mountPoints?: MountPoints;
     //affinity: Affinity;
-    resources?: Resources;
+    resources: Resources;
 }
 
 export interface KubeConfigLocal {
@@ -78,6 +79,7 @@ export interface HarborConfig {
 export interface JobsQueue {
     namespace: string;
     configmap: string;
+    gpuResources: string[];
 }
 
 export interface Settings {

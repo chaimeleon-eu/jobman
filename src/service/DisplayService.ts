@@ -15,6 +15,7 @@ import DetailsProps from "../model/args/DetailsProps.js";
 import LogProps from "../model/args/LogProps.js";
 import DeleteProps from "../model/args/DeleteProps.js";
 import ImageDetailsProps from "../model/args/ImageDetailsProps.js";
+import QueueResult from "../model/QueueResult.js";
 
 type SimpleMsgCallbFunction = (...args: any[]) => void;
 
@@ -32,6 +33,38 @@ export default class DisplayService {
     constructor(settings: Settings) {
         this.km = new KubeManager(settings);
         util.inspect.defaultOptions.maxArrayLength = null;
+    }
+
+    public queue(): void {
+        marked.setOptions({
+            // Define custom renderer
+            renderer: new TerminalRenderer()
+          });
+        this.km.queue()
+            .then(r => this.simpleMsg(r,  () => {
+                    const t = new Table({
+                        enabledColumns: ["Flavor", "Active jobs (total/yours)", "CPU/Memory/GPUs"],
+                        columns: [],
+                        computedColumns:[
+                            {
+                                name: "CPU/Memory/GPUs",
+                                function: (row: QueueResult) => `${row.cpu ?? "-"}/${row.memory ?? "-"}/${row.gpu ?? "-"}`, 
+                            },
+                            {
+                                name: "Flavor",
+                                function: (row: QueueResult) => row.flavor ?? "<no label>"
+                            },
+                            {
+                                name: "Jobs (total/yours)",
+                                function: (row: QueueResult) => `${row.count}/${row.userJobsCnt}`
+                            }
+                        ]
+                    });
+                    t.addRows(r.payload);
+                    t.printTable();
+                }
+            ))
+            .catch(e => this.simpleMsg(new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null)));        
     }
 
     public images(): void {

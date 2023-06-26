@@ -8,11 +8,12 @@ jobman [`<jobman_options>`] [`<command>`] [`<command_options>`]
     -s/--settings <settings_file_path>:  optional; path to a custom settings file
 
 `<command>` can be one of the following:
-    images:  lists all available images on Harbor that can be used to launch the Kubernetes job with;
-    image-details:  obtains the associated description for an image on Harbor;
+    images:  lists all available images on Harbor that can be used to launch the Kubernetes job with
+    image-details:  obtains the associated description for an image on Harbor
+    queue: lists information regarding the kubernetes jobs queue, grouped by flavor/requests
     submit:  submits a job to Kubernetes
     list:  lists all existing jobs, including those that ended (successfully or not)
-    details:  displays the details of a specific, existing job; it outputs a JSON with all the information held by Kubernetes about a specific job, including its detailed status and  information about the underlying pod.
+    details:  displays the details of a specific, existing job; it outputs a JSON with all the information held by Kubernetes about a specific job, including its detailed status and  information about the underlying pod
     log:  shows the log of a specific, existing job
     delete:  removes a specific, existing job
 
@@ -22,7 +23,7 @@ jobman [`<jobman_options>`] [`<command>`] [`<command_options>`]
 `<command_options>` for the **submit** command can be:
     -i/--image <image_name>:<tag>:  required; the image name followed by a valid tag that will be used as the base for the job's container
     -j/--job-name <job_name>:  optional; the name of the kubernetes job [default "job-<UUID_generated_at_launch_time>"]
-    -r/--resources <resources_flavor_name>: required/optional; either a JSON string with the definition of a resources flavor, or a path to a JSON file containing a resources flavor, or a name of a predefined resources flavor already defined in the application's settings 
+    -r/--resources <resources_flavor_name>: required/optional*; either a JSON string with the definition of a resources flavor, or a path to a JSON file containing a resources flavor, or a name of a predefined resources flavor already defined in the application's settings; *optional when there is a default flavor name set in the application settings
     --: required; separator between the submit command options and the command passed to the job's container; the parameters that follow the double dash are sent
 
 `<command_options>` for the **details** command can be:

@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: jobman-queue-position
+spec:
+  schedule: "*/3 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 10
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          serviceAccountName: jobman-queue-position
+          containers:
+            - name: jobman-queue-position-pod
+              image: alpine/k8s:1.27.1
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/bash
+                - -c
+                - "export QUEUE=jobman-queue-position && kubectl get jobs --all-namespaces -o json \
+                    | jq '[.items[] | select((.status.failed == null and .status.failed==0) or (.status.succeeded == null and .status.succeeded==0) or (.status.active==1)) | select(.metadata.namespace | startswith(\"user-\"))]' \
+                    | jq '{updated: now | todate, jobs: [ .[] | {namespace: .metadata.namespace, name: .metadata.name, updated: .metadata.creationTimestamp, resources: {flavor: .metadata.annotations.\"chaimeleon.eu/jobResourcesFlavor\", requests: .spec.template.spec.containers[0].resources.requests}} ]}' \
+                      | kubectl create configmap $QUEUE --from-file=$QUEUE=/dev/stdin --dry-run=client -o yaml \
+                      | kubectl apply -f -"
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: "256M"
+                limits:
+                  cpu: 1
+                  memory: "1G"
+

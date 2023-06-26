@@ -3,7 +3,6 @@ import { parseArgs } from 'node:util';
 import { exit } from "node:process";
 import fs from "node:fs";
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { marked } from "marked";
 import TerminalRenderer from "marked-terminal";
 
@@ -12,11 +11,12 @@ import ParameterException from './model/exception/ParameterException.js';
 import { Settings } from './model/Settings.js';
 import SettingsManager from './service/SettingsManager.js';
 import KubeManagerProps from './model/args/KubeManagerProps.js';
+import Util from './Util.js';
 
 const ARGS_PARSING_ERROR_MSG = "Error parsing the arguments, please check the help by passing -h/--help as first arg of the application.";
 
 export enum Cmd {
-    Images, ImageDetails, Submit, List, Details, Log, Delete
+    Queue, Images, ImageDetails, Submit, List, Details, Log, Delete
 }
 
 
@@ -71,6 +71,7 @@ export class Main {
 
     protected parseCmdArgs(cmdArg: string, sp: string | null, cmdArgs: string[]): void {
         switch (cmdArg) {
+            case "queue": this.execCmd(Cmd.Queue, sp, {}); break;
             case "submit": { 
                 const cmdPos = cmdArgs.indexOf("--");
                 if (cmdPos !== -1) {
@@ -135,6 +136,7 @@ export class Main {
         const s: Settings = new SettingsManager(sp).settings;
         const ds: DisplayService = new DisplayService(s);
         switch (cmd) {
+            case Cmd.Queue: ds.queue(); break;
             case Cmd.Images: ds.images(); break;
             case Cmd.ImageDetails: ds.imageDetails(payload); break;
             case Cmd.Submit: ds.submit(payload); break;
@@ -151,8 +153,7 @@ export class Main {
             // Define custom renderer
             renderer: new TerminalRenderer()
           });
-        const __dirname: string = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-        console.log(marked(fs.readFileSync(path.join(__dirname, Main.USAGE_FILE), {encoding: "ascii", flag: "r" })));
+        console.log(marked(fs.readFileSync(path.join(path.dirname(Util.getDirName()), Main.USAGE_FILE), {encoding: "ascii", flag: "r" })));
     }
     
     protected printV() {

@@ -1,9 +1,12 @@
 {
-    "sharedNamespace": "zz-shared",
+    "sharedNamespace": "default",
     "sharedConfigmap": "jobman-jobs-config",
     "jobsQueue": {
-        "namespace": "zz-shared",
-        "configmap": "jobman-k8s-queue"
+        "namespace": "default",
+        "configmap": "jobman-queue-position",
+        "gpuResources": [
+            "nvidia.com/gpu"
+        ]
     },
     "job": {
         "defaultImage": null,
@@ -24,9 +27,23 @@
             "datasets": "none"
         },
         "resources": {
-            "default": "<preselect on of the resources flavor in the predefined section by its name>",
-            "tag": "<the tag key that will be added to the metadata along with the name of the chosen resources falvors, predefined or otherwise>",
-            "predefined": []
+            "default": "default",
+            "label": "label",
+            "predefined": [
+                {
+                    "name": "default",
+                    "resources": {
+                        "requests": {
+                            "cpu": "50m",
+                            "memory": "128M"
+                        },
+                        "limits": {
+                            "cpu": "50m",
+                            "memory": "128M"
+                        }
+                    }
+                }
+            ]
         }
     },
     "kubeConfig": {
