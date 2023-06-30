@@ -9,6 +9,7 @@
         ]
     },
     "job": {
+        "datasetsList": "datasets.txt",
         "defaultImage": null,
         "imagePrefix": null,
         "userConfigmap": null,

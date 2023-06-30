@@ -43,7 +43,7 @@ export default class DisplayService {
         this.km.queue()
             .then(r => this.simpleMsg(r,  () => {
                     const t = new Table({
-                        enabledColumns: ["Flavor", "Active jobs (total/yours)", "CPU/Memory/GPUs"],
+                        enabledColumns: ["Flavor", "Jobs (total/yours)", "CPU/Memory/GPUs"],
                         columns: [],
                         computedColumns:[
                             {

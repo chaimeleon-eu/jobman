@@ -53,7 +53,7 @@ export interface SecurityContext {
 }
 
 export interface Job {
-
+    datasetsList?: string;
     defaultImage?: string;
     imagePrefix?: string | null;
     userConfigmap: string | null | undefined,

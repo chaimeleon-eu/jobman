@@ -372,21 +372,34 @@ export default class KubeManager {
                     }
                 ];
                 // Mount datasets
-                const dirs: string[] = fs.readdirSync(this.settings.job.mountPoints.datasets)
-                    .filter((f: any) => fs.statSync(path.join(this.settings.job.mountPoints?.datasets ?? "", f)).isDirectory());
+                // const dirs: string[] = fs.readdirSync(this.settings.job.mountPoints.datasets)
+                //     .filter((f: any) => fs.statSync(path.join(this.settings.job.mountPoints?.datasets ?? "", f)).isDirectory());
+                // Read the list of datasets from file
+                let dirs: string[] | undefined = undefined;
+                if (this.settings.job.datasetsList && this.settings.job.datasetsList.length > 0) {
+                    try {
+                        dirs = fs.readFileSync(this.settings.job.datasetsList, "ascii")?.replaceAll("\n", "")?.split(",");
+                    } catch (e) {
+                        throw new ParameterException(`Cannot open the datasets list at ${this.settings.job.datasetsList}. If you don't intend to mount access any dataset please remove the "datasetsList" option in settings -> job`);
+                    }
+                }
 
                 const pt: string | undefined = userConfigmap.data?.["datasets.path"];
                 if (pt) {
-                    for (const dir of dirs) {
-                            vs.push({
-                                name: dir,
-                                cephfs: this.defJobVolume(userConfigmap,  path.join(pt, dir), true)
+                    if (dirs) {
+                        for (const dir of dirs) {
+                                vs.push({
+                                    name: dir,
+                                    cephfs: this.defJobVolume(userConfigmap,  path.join(pt, dir), true)
 
-                            });
-                            vms.push({
-                                name: dir,
-                                mountPath: path.join(this.settings.job.mountPoints.datasets, dir)
-                            });
+                                });
+                                vms.push({
+                                    name: dir,
+                                    mountPath: path.join(this.settings.job.mountPoints.datasets, dir)
+                                });
+                        }
+                    } else {
+                        console.warn("the list of datasets to be mounted is empty. If this is not by design, please ensure that the path defined in settings for \"datasetsList\" is correct, and the file has the correct format/not empty.")   
                     }
                 } else {
                     throw new ParameterException(`Missing 'datasets.path' entry in user configmap '${this.settings.job.userConfigmap}'`);
