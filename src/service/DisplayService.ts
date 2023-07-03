@@ -42,26 +42,31 @@ export default class DisplayService {
           });
         this.km.queue()
             .then(r => this.simpleMsg(r,  () => {
-                    const t = new Table({
-                        enabledColumns: ["Flavor", "Jobs (total/yours)", "CPU/Memory/GPUs"],
-                        columns: [],
-                        computedColumns:[
-                            {
-                                name: "CPU/Memory/GPUs",
-                                function: (row: QueueResult) => `${row.cpu ?? "-"}/${row.memory ?? "-"}/${row.gpu ?? "-"}`, 
-                            },
-                            {
-                                name: "Flavor",
-                                function: (row: QueueResult) => row.flavor ?? "<no label>"
-                            },
-                            {
-                                name: "Jobs (total/yours)",
-                                function: (row: QueueResult) => `${row.count}/${row.userJobsCnt}`
-                            }
-                        ]
-                    });
-                    t.addRows(r.payload);
-                    t.printTable();
+                    if (r.payload) {
+                        const t = new Table({
+                            enabledColumns: ["Flavor", "Jobs (total/yours)", "CPU/Memory/GPUs"],
+                            columns: [],
+                            computedColumns:[
+                                {
+                                    name: "CPU/Memory/GPUs",
+                                    function: (row: QueueResult) => `${row.cpu ?? "-"}/${row.memory ?? "-"}/${row.gpu ?? "-"}`, 
+                                },
+                                {
+                                    name: "Flavor",
+                                    function: (row: QueueResult) => row.flavor ?? "<no label>"
+                                },
+                                {
+                                    name: "Jobs (total/yours)",
+                                    function: (row: QueueResult) => `${row.count}/${row.userJobsCnt}`
+                                }
+                            ]
+                        });
+                        t.addRows(r.payload.result);
+                        t.printTable();
+                        console.log(`Last queue update on: ${new Intl.DateTimeFormat('en', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(r.payload.updated))}`)
+                    } else {
+                        this.simpleMsg(new KubeOpReturn(KubeOpReturnStatus.Error, "Queue of active jobs not available", null))
+                    }
                 }
             ))
             .catch(e => this.simpleMsg(new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null)));        

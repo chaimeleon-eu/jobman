@@ -25,6 +25,7 @@ import ImageDetailsProps from '../model/args/ImageDetailsProps.js';
 import KubeResourcesPrep from './KubeResourcesPrep.js';
 import QueueResult from '../model/QueueResult.js';
 import QueueConfigMap from '../model/QueueConfigMap.js';
+import QueueResultDisplay from '../model/QueueResultDisplay.js';
 
 
 
@@ -43,14 +44,14 @@ export default class KubeManager {
         this.watch = new Watch(this.clusterConfig);
     }
 
-    public async queue():  Promise<KubeOpReturn<Map<string, QueueResult> | null>> {
+    public async queue():  Promise<KubeOpReturn<QueueResultDisplay | null>> {
         try {
 
             const cm: V1ConfigMap = await this.getConfigmap(this.settings.jobsQueue.configmap, this.settings.jobsQueue.namespace);
             if (cm) {
                 const queue: QueueConfigMap | null = cm.data?.[this.settings.jobsQueue.configmap] 
                     ? JSON.parse(cm.data[this.settings.jobsQueue.configmap] ?? "") as QueueConfigMap : null;
-                const byLabel = new Map<string, QueueResult>();
+                const result = new Map<string, QueueResult>();
                 if (queue) {
                     for (const j of queue.jobs) {
                         const cpu: string | undefined = j.resources.requests?.["cpu"];
@@ -76,15 +77,15 @@ export default class KubeManager {
                             //flavor = "<no label>";//`unk-${uuidv4()}`
                             id = `${cpu}/${memory}/${gpu}`;
                         }
-                        cnt = byLabel.get(id);
+                        cnt = result.get(id);
                         if (cnt) {
                             cnt.count = cnt.count + 1;
                             if (isUserJob) {
                                 cnt.userJobsCnt = cnt.userJobsCnt + 1;
                             }
-                            byLabel.set(id, cnt);
+                            result.set(id, cnt);
                         } else {
-                            byLabel.set(id, {
+                            result.set(id, {
                                 id,
                                 flavor,
                                 count: 1,
@@ -95,9 +96,9 @@ export default class KubeManager {
                         
                         
                     }
-                    return new KubeOpReturn(this.getStatusKubeOp(200), undefined, byLabel);
+                    return new KubeOpReturn(this.getStatusKubeOp(200), undefined, {result, updated: queue.updated});
                 } else {
-                    return new KubeOpReturn(this.getStatusKubeOp(200), undefined, byLabel);
+                    throw new KubeException("The queue is not available, please make sure the settings are correct and the CronJob has been started on the cluster.");
                 }
             } else {
                 throw new KubeException(`Unable to retrieve configmap ${this.settings.jobsQueue.configmap}  from namespace ${this.settings.jobsQueue.namespace}`);
