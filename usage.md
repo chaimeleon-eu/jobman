@@ -21,10 +21,12 @@ jobman [`<jobman_options>`] [`<command>`] [`<command_options>`]
     -i/--image <image_name>:  required; the image name which you want to get the description for from Harbor
 
 `<command_options>` for the **submit** command can be:
-    -i/--image <image_name>:<tag>:  required; the image name followed by a valid tag that will be used as the base for the job's container
+    -i/--image <image_name>:<tag>:  required/optional*; the image name followed by a valid tag that will be used as the base for the job's container; *optional when a default value is set in settings
     -j/--job-name <job_name>:  optional; the name of the kubernetes job [default "job-<UUID_generated_at_launch_time>"]
     -r/--resources <resources_flavor_name>: required/optional*; either a JSON string with the definition of a resources flavor, or a path to a JSON file containing a resources flavor, or a name of a predefined resources flavor already defined in the application's settings; *optional when there is a default flavor name set in the application settings
-    --: required; separator between the submit command options and the command passed to the job's container; the parameters that follow the double dash are sent
+    -c/--command: optional; flag; If added and extra arguments are present after '--', use them as the 'command' field in the Kubernetes job's container (or EntryPoint in Docker), rather than the 'args' field (or CMD in Docker) which is the default [default false]
+    --dry-run: optional; flag; if set the job is not sent to Kubernetes, it's contetnt is dumped on the screen 
+    --: required; separator between the submit command options and the command or args passed to the job's container; the string that follows the double dash are sent to the Kubernetes job's container either as args or as command (if the 'command' flag is used)
 
 `<command_options>` for the **details** command can be:
     -j/--job-name <job_name>:  required; the name of the job for which you want to get the details; 

@@ -4,5 +4,7 @@ export default interface SubmitProps extends KubeManagerProps{
     jobName?: string;
     image?: string;
     resources?: string;
-    command?: string[];
+    commandArgs?: string[];
+    command?: boolean;
+    dryRun?: boolean;
 }

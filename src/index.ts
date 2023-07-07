@@ -79,13 +79,17 @@ export class Main {
                     const { values } = parseArgs({ args: tmp, options: {
                         "job-name": { type: "string", short: "j" },
                         image: { type: "string", short: "i" },
-                        resources: { type: "string", short: "r" }
+                        resources: { type: "string", short: "r" },
+                        command: { type: "boolean", short: "c", default: false },
+                        "dry-run": { type: "boolean", default: false }
                     }
                 });
                 this.execCmd(Cmd.Submit, sp, {
                         jobName: values["job-name"], image: values.image, 
                         resources: values.resources,
-                        command: cmdArgs.slice(cmdPos + 1, cmdArgs.length)
+                        commandArgs: cmdArgs.slice(cmdPos + 1, cmdArgs.length),
+                        command: values.command,
+                        dryRun: values['dry-run']
                     });
                 } else {
                     throw new ParameterException("Missing container command separator '--'. It is needed to separate jobman's args and the actual command  passed to the container.");

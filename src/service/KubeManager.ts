@@ -110,80 +110,94 @@ export default class KubeManager {
 
     public async submit(props: SubmitProps): Promise<KubeOpReturn<null>> {
         try {
-            if (!props.image) {
-                return new KubeOpReturn(KubeOpReturnStatus.Error,
-                    "Please specify an image and tag. Use the 'images' command to see the available images and tags for each of them.",
-                    null);
-            } else {            
-                console.log(`Parameters sent to the job's container: ${JSON.stringify(props.command)}`);
-                const kr: KubeResources = KubeResourcesPrep.getKubeResources(this.settings, props.resources);
-                const jn: string = props.jobName ?? `job-${uuidv4()}`;
-                const cont = (this.settings.job?.imagePrefix ?? "") + (props.image ?? this.settings.job.defaultImage);
-                console.log(`Using image '${cont}'`);
-                console.log("Preparing volumes...");
-                const [volumes, volumeMounts] = await this.prepareJobVolumes();
-                const job: V1Job = new V1Job();
-                job.metadata = {
-                    name: jn,
-                    namespace: this.getNamespace(),
-                    annotations: {
-                        [this.settings.job.resources.label]: kr.name
+            // if (!props.image) {
+            //     return new KubeOpReturn(KubeOpReturnStatus.Error,
+            //         "Please specify an image and tag. Use the 'images' command to see the available images and tags for each of them.",
+            //         null);
+            // } else {            
+            //console.log(`Parameters sent to the job's container: ${JSON.stringify(props.command)}`);
+            const kr: KubeResources = KubeResourcesPrep.getKubeResources(this.settings, props.resources);
+            const jn: string = props.jobName ?? `job-${uuidv4()}`;
+            const imageNm: string | undefined = props.image ?? this.settings.job.defaultImage;
+            if (!imageNm || imageNm.length === 0) {
+                throw new ParameterException(
+                    `Please specify an image name and a tag either using the command line parameters or defining a default value in application's settings`); 
+            }
+            const image = (this.settings.job?.imagePrefix ?? "") + imageNm;
+            console.log(`Using image '${image}'`);
+            console.log("Preparing volumes...");
+            const [volumes, volumeMounts] = await this.prepareJobVolumes();
+            const job: V1Job = new V1Job();
+            job.metadata = {
+                name: jn,
+                namespace: this.getNamespace(),
+                annotations: {
+                    [this.settings.job.resources.label]: kr.name
+                }
+            }
+            job.kind = "Job";
+            const securityContext: SecurityContext | undefined | null = this.settings.job.securityContext;
+            if (securityContext && this.settings.job.userConfigmap) {
+                const userConfigmap: V1ConfigMap = await this.getConfigmap(this.settings.job.userConfigmap);
+                const sgs: string | undefined | null = userConfigmap.data?.["ceph.gid"]
+                if (sgs) {
+                    securityContext.supplementalGroups = [Number(sgs)];
+                }
+            }
+            const priorityClassName: string | undefined | null = this.settings.job.priorityClassName;
+            const command: string[] | undefined = props.command ? (props.commandArgs ? props.commandArgs :  ["/bin/sh", "-c", "echo 'No command provided to container"]) : undefined;
+            const args: string[] | undefined = props.command ? undefined : props.commandArgs;
+            job.spec = {
+                backoffLimit: 0,
+                template: {
+                    metadata: {
+                        name: jn
+                    },
+                    spec: {
+                        ...securityContext && {...new V1PodSecurityContext(), ...securityContext},
+                        ...priorityClassName && {priorityClassName},
+                        ...volumes && {volumes},
+                        containers: [
+                            {
+                                name: `container-${uuidv4()}`,
+                                image,
+                                ...command && {command},
+                                ...args && {args},
+                                ...volumeMounts && {volumeMounts},
+                                resources: {...new V1ResourceRequirements(), ...kr.resources}
+                            }
+                        ],
+                        restartPolicy: "Never",
+                        // affinity: {
+                        //     nodeAffinity: {
+                        //         requiredDuringSchedulingIgnoredDuringExecution: {
+                        //             nodeSelectorTerms:[
+                        //                 {
+                        //                     matchExpressions: [
+                        //                         {
+                        //                             key: props.gpu ? this.settings.job.affinity.gpu : this.settings.job.affinity.cpu,
+                        //                             operator: "Exist"
+                        //                         }
+                        //                     ]
+                        //                 }
+                        //             ]
+                        //         }
+                        //     }
+                        // }
                     }
                 }
-                job.kind = "Job";
-                const securityContext: SecurityContext | undefined | null = this.settings.job.securityContext;
-                if (securityContext && this.settings.job.userConfigmap) {
-                    const userConfigmap: V1ConfigMap = await this.getConfigmap(this.settings.job.userConfigmap);
-                    const sgs: string | undefined | null = userConfigmap.data?.["ceph.gid"]
-                    if (sgs) {
-                        securityContext.supplementalGroups = [Number(sgs)];
-                    }
-                }
-                const priorityClassName: string | undefined | null = this.settings.job.priorityClassName;
-                job.spec = {
-                    backoffLimit: 0,
-                    template: {
-                        metadata: {
-                            name: jn
-                        },
-                        spec: {
-                            ...securityContext && {...new V1PodSecurityContext(), ...securityContext},
-                            ...priorityClassName && {priorityClassName},
-                            ...volumes && {volumes},
-                            containers: [
-                                {
-                                    name: `container-${uuidv4()}`,
-                                    image: cont,
-                                    command: props.command ? props.command :  ["/bin/sh", "-c", "echo 'No command provided to container"],
-                                    ...volumeMounts && {volumeMounts},
-                                    resources: {...new V1ResourceRequirements(), ...kr.resources}
-                                }
-                            ],
-                            restartPolicy: "Never",
-                            // affinity: {
-                            //     nodeAffinity: {
-                            //         requiredDuringSchedulingIgnoredDuringExecution: {
-                            //             nodeSelectorTerms:[
-                            //                 {
-                            //                     matchExpressions: [
-                            //                         {
-                            //                             key: props.gpu ? this.settings.job.affinity.gpu : this.settings.job.affinity.cpu,
-                            //                             operator: "Exist"
-                            //                         }
-                            //                     ]
-                            //                 }
-                            //             ]
-                            //         }
-                            //     }
-                            // }
-                        }
-                    }
 
-                }
+            }
+            if (props.dryRun) {
+                return new KubeOpReturn(KubeOpReturnStatus.Success, "\n" + JSON.stringify(job, null, 2), null);
+
+            } else {
                 const r = await this.k8sApi.createNamespacedJob(this.getNamespace(), job);
                 return new KubeOpReturn(this.getStatusKubeOp(r.response.statusCode), 
                     `Job named '${jn}' created successfully by user '${this.getUsername()}'`, null);
+
             }
+            //}
         
         } catch (e) {
             return this.handleKubeOpsError(e);
@@ -508,7 +522,7 @@ export default class KubeManager {
     protected handleKubeOpsError(e: any): KubeOpReturn<null> {
         if (e instanceof HttpError) {
             return new KubeOpReturn(KubeOpReturnStatus.Error, `Error message from Kubernetes: ${e.body.message}`, null);
-        } else if (e instanceof Error || e instanceof KubeException) {
+        } else if (e instanceof Error || e instanceof KubeException || e instanceof ParameterException) {
             return new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null);
         } else {
             return new KubeOpReturn(KubeOpReturnStatus.Error, `Unknown error: ${JSON.stringify(e)}`, null);
