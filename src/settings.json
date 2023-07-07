@@ -10,7 +10,7 @@
     },
     "job": {
         "datasetsList": "datasets.txt",
-        "defaultImage": null,
+        "defaultImage": "alpine:latest",
         "imagePrefix": null,
         "userConfigmap": null,
         "datasetsEnvVar": "CHAIMELEON_DATASETS",
@@ -47,6 +47,7 @@
             ]
         }
     },
+    "newVersion": null,
     "kubeConfig": {
         "type": "file",
         "file": "/kube_config.json"

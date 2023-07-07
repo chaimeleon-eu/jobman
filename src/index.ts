@@ -12,6 +12,7 @@ import { Settings } from './model/Settings.js';
 import SettingsManager from './service/SettingsManager.js';
 import KubeManagerProps from './model/args/KubeManagerProps.js';
 import Util from './Util.js';
+import NewVersion from './service/NewVersion.js';
 
 const ARGS_PARSING_ERROR_MSG = "Error parsing the arguments, please check the help by passing -h/--help as first arg of the application.";
 
@@ -138,18 +139,26 @@ export class Main {
 
     protected execCmd(cmd: Cmd, sp: string | null, payload: KubeManagerProps): void { 
         const s: Settings = new SettingsManager(sp).settings;
-        const ds: DisplayService = new DisplayService(s);
-        switch (cmd) {
-            case Cmd.Queue: ds.queue(); break;
-            case Cmd.Images: ds.images(); break;
-            case Cmd.ImageDetails: ds.imageDetails(payload); break;
-            case Cmd.Submit: ds.submit(payload); break;
-            case Cmd.List: ds.list(); break;
-            case Cmd.Details: ds.details(payload); break;
-            case Cmd.Log: ds.log(payload); break;
-            case Cmd.Delete: ds.delete(payload); break;
-            default: console.error(ARGS_PARSING_ERROR_MSG);
-        }
+        // Check for new version
+        new NewVersion(s)
+            .check()
+            .then(msg => msg ? console.log(msg) : () => {})
+            .catch(errMesage => console.error(errMesage))
+            // Execute the rest of the program independently of what is return by the new version checker
+            .finally(() => {
+                const ds: DisplayService = new DisplayService(s);
+                switch (cmd) {
+                    case Cmd.Queue: ds.queue(); break;
+                    case Cmd.Images: ds.images(); break;
+                    case Cmd.ImageDetails: ds.imageDetails(payload); break;
+                    case Cmd.Submit: ds.submit(payload); break;
+                    case Cmd.List: ds.list(); break;
+                    case Cmd.Details: ds.details(payload); break;
+                    case Cmd.Log: ds.log(payload); break;
+                    case Cmd.Delete: ds.delete(payload); break;
+                    default: console.error(ARGS_PARSING_ERROR_MSG);
+                }
+            });
     }
     
     protected printH() {
