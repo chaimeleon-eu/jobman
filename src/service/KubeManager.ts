@@ -222,6 +222,8 @@ export default class KubeManager {
                         });
                     }
                 }
+                res.sort(function(a,b){return (b.dateLaunched?.getTime() ?? 0) 
+                        - (a.dateLaunched?.getTime() ?? 0)});
                 return new KubeOpReturn(KubeOpReturnStatus.Success, r.message, res);
             } else {
                 return new KubeOpReturn(KubeOpReturnStatus.Success, "Empty jobs", null);

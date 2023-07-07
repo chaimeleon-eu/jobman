@@ -21,11 +21,21 @@ export default class NewVersion {
                 if (this.newVersion.toLowerCase().endsWith("tar.gz")) {
                     try {
                         const extract = tar.extract();
-                        let data = '';
-                        extract.on('entry', function(header, stream, cb) {
+                        let datas: Map<string, string> = new Map<string, string>();
+                        extract.on('entry', (header, stream, cb) => {
                             stream.on('data', function(chunk) {
-                                if (header.name === 'package.json')
+                                if (header.name.endsWith('package.json')) {
+                                    let data: string | undefined = datas.get(header.name);
+                                    if (!data) {
+                                        data = "";
+                                    }
                                     data += chunk;
+                                    datas.set(header.name, data);
+                                }
+                            });
+
+                            stream.on("error", (e: Error) => {
+                                reject(NewVersion.ERROR_MSG(this.newVersion, e.message));
                             });
                         
                             stream.on('end', function() {
@@ -34,24 +44,36 @@ export default class NewVersion {
                         
                             stream.resume();
                         });
-                        extract.on("error", (err: Error) => {
-                            reject(NewVersion.ERROR_MSG(this.newVersion, err.message));
+                        extract.on("error", (e: Error) => {
+                            reject(NewVersion.ERROR_MSG(this.newVersion, e.message));
                         });
                         
                         extract.on('finish', () => {
-                            let pkgObj = JSON.parse(data);
-                            if (pkgObj) {
-                                const cVer: string | undefined = process.env["npm_package_version"];
-                                const newVer: string | undefined = pkgObj["version"];
-                                if (newVer) {
-                                    const msg = cVer?.toLowerCase()?.localeCompare(newVer.toLowerCase()) ?
-                                        `\nA new version  of jobman, ${newVer}, is available.\n` : null;
-                                    resolve(msg);
-                                } else {
-                                    reject(NewVersion.ERROR_MSG(this.newVersion, "Missing 'version' property in 'package.json'"));
+                            if (datas.size === 1) {
+                                try {
+                                    console.log(datas.values().next().value);
+                                    let pkgObj = JSON.parse(datas.values().next().value);
+                                    if (pkgObj) {
+                                        const cVer: string | undefined = process.env["npm_package_version"];
+                                        const newVer: string | undefined = pkgObj["version"];
+                                        if (newVer) {
+                                            const msg = cVer?.toLowerCase()?.localeCompare(newVer.toLowerCase()) ?
+                                                `\nA new version  of jobman, ${newVer}, is available.\n` : null;
+                                            resolve(msg);
+                                        } else {
+                                            reject(NewVersion.ERROR_MSG(this.newVersion, "Missing 'version' property in 'package.json'"));
+                                        }
+                                    } else {
+                                        reject(NewVersion.ERROR_MSG(this.newVersion, "Unable to parse 'package.json'"));
+                                    }
+                                } catch (e) {
+                                    const msg = e instanceof Error ? e.message : String(e);
+                                    reject(NewVersion.ERROR_MSG(this.newVersion, msg));
                                 }
+                            } else if (datas.size > 1) {
+                                reject(NewVersion.ERROR_MSG(this.newVersion, `Multiple 'package.json' files found in '${this.newVersion}'`));
                             } else {
-                                reject(NewVersion.ERROR_MSG(this.newVersion, "Unable to parse 'package.json'"));
+                                reject(NewVersion.ERROR_MSG(this.newVersion, `No 'package.json' file found in '${this.newVersion}'`));
                             }
                         });
                         
