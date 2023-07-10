@@ -4,13 +4,11 @@
     "jobsQueue": {
         "namespace": "default",
         "configmap": "jobman-queue-position",
-        "gpuResources": [
-            "nvidia.com/gpu"
-        ]
+        "gpuResources": [ ]
     },
     "job": {
         "datasetsList": "datasets.txt",
-        "defaultImage": "alpine:latest",
+        "defaultImage": null,
         "imagePrefix": null,
         "userConfigmap": null,
         "datasetsEnvVar": "CHAIMELEON_DATASETS",
@@ -28,28 +26,15 @@
             "datasets": "none"
         },
         "resources": {
-            "default": "default",
-            "label": "label",
-            "predefined": [
-                {
-                    "name": "default",
-                    "resources": {
-                        "requests": {
-                            "cpu": "50m",
-                            "memory": "128M"
-                        },
-                        "limits": {
-                            "cpu": "50m",
-                            "memory": "128M"
-                        }
-                    }
-                }
-            ]
+            "default": null,
+            "label": null,
+            "predefined": []
         }
     },
     "newVersion": {
-        "repository": "/home/asalic/workspace/upv/chaimeleon/jobman-1.2.5-beta.tar.gz",
-        "packageJsonPath": "jobman/package.json"
+        "repository": null,
+        "packageJsonPath": null,
+        "customMessage": null
     },
     "kubeConfig": {
         "type": "file",

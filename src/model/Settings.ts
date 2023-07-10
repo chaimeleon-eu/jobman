@@ -85,6 +85,7 @@ export interface JobsQueue {
 export interface NewVersion {
     repository?: string | null;
     packageJsonPath?: string | null;
+    customMessage?: string | null;
 }
 
 export interface Settings {

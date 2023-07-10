@@ -60,7 +60,7 @@ export default class VersionService {
                                             const newVer: string | undefined = pkgObj["version"];
                                             if (newVer) {
                                                 const msg = cVer?.toLowerCase()?.localeCompare(newVer.toLowerCase()) ?
-                                                    `\nA new version  of jobman, ${newVer}, is available.\n` : null;
+                                                    `\nA new version  of jobman, ${newVer}, is available.\n${this.newVersion?.customMessage ?? ""}\n` : null;
                                                 resolve(msg);
                                             } else {
                                                 reject(VersionService.ERROR_MSG(this.newVersion?.repository, 
