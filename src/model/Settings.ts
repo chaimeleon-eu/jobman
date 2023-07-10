@@ -82,6 +82,11 @@ export interface JobsQueue {
     gpuResources: string[];
 }
 
+export interface NewVersion {
+    repository?: string | null;
+    packageJsonPath?: string | null;
+}
+
 export interface Settings {
     sharedNamespace: string;
     sharedConfigmap: string;
@@ -92,7 +97,7 @@ export interface Settings {
      * It supports:
      * - a local full path to a tar.gz archive with the jobman distribution 
      */
-    newVersion?: string | null;
+    newVersion?: NewVersion | null;
     kubeConfig: KubeConfigLocal;
     harbor: HarborConfig;
 }

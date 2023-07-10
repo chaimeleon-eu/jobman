@@ -10,7 +10,7 @@ jobman [`<jobman_options>`] [`<command>`] [`<command_options>`]
 `<command>` can be one of the following:
     images:  lists all available images on Harbor that can be used to launch the Kubernetes job with
     image-details:  obtains the associated description for an image on Harbor
-    queue: lists information regarding the kubernetes jobs queue, grouped by flavor/requests
+    queue: lists information regarding the kubernetes jobs queue, grouped by flavors/requests
     submit:  submits a job to Kubernetes
     list:  lists all existing jobs, including those that ended (successfully or not)
     details:  displays the details of a specific, existing job; it outputs a JSON with all the information held by Kubernetes about a specific job, including its detailed status and  information about the underlying pod
@@ -21,11 +21,11 @@ jobman [`<jobman_options>`] [`<command>`] [`<command_options>`]
     -i/--image <image_name>:  required; the image name which you want to get the description for from Harbor
 
 `<command_options>` for the **submit** command can be:
-    -i/--image <image_name>:<tag>:  required/optional*; the image name followed by a valid tag that will be used as the base for the job's container; *optional when a default value is set in settings
-    -j/--job-name <job_name>:  optional; the name of the kubernetes job [default "job-<UUID_generated_at_launch_time>"]
-    -r/--resources <resources_flavor_name>: required/optional*; either a JSON string with the definition of a resources flavor, or a path to a JSON file containing a resources flavor, or a name of a predefined resources flavor already defined in the application's settings; *optional when there is a default flavor name set in the application settings
-    -c/--command: optional; flag; If added and extra arguments are present after '--', use them as the 'command' field in the Kubernetes job's container (or EntryPoint in Docker), rather than the 'args' field (or CMD in Docker) which is the default [default false]
-    --dry-run: optional; flag; if set the job is not sent to Kubernetes, it's contetnt is dumped on the screen 
+    -i/--image <image_name>:<tag>:  required/optional*; the image name followed by a valid tag that will be used for the job; *optional when a default value appears in settings
+    -j/--job-name <job_name>:  optional; the name of the kubernetes job ["job-<UUID_generated_at_launch_time>"]
+    -r/--resources-flavor <resources_flavor_name>: required/optional*; either a JSON string with the definition of a resources flavor, or a path to a JSON file containing a resources flavor, or a name of a predefined resources flavor already defined in the application's settings; *optional when there is a default flavor name set in the application settings
+    -c/--command: optional; flag; If added and extra arguments are present after '--', use them as the 'command' field in the Kubernetes job's container (or EntryPoint in Docker), rather than the 'args' field (or CMD in Docker) which is the default [false]
+    --dry-run: optional; flag; if set the job is not sent to Kubernetes, its content is dumped on the screen [false]
     --: required; separator between the submit command options and the command or args passed to the job's container; the string that follows the double dash are sent to the Kubernetes job's container either as args or as command (if the 'command' flag is used)
 
 `<command_options>` for the **details** command can be:

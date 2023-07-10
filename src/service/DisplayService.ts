@@ -119,7 +119,7 @@ export default class DisplayService {
             .then(r => this.simpleMsg(r, 
                 () => {
                     const t = new Table({
-                        enabledColumns: ["name", "status", "Launching Date"],
+                        enabledColumns: ["name", "status", "Launch Date"],
                         columns: [
                           {
                             name: "name",
@@ -132,7 +132,7 @@ export default class DisplayService {
                         ],
                         computedColumns:[
                             {
-                                name: "Launching Date",
+                                name: "Launch Date",
                                 function: (row: JobInfo) => new Intl.DateTimeFormat('en-GB', this.options)
                                                 .format(row.dateLaunched), 
                             }

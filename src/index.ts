@@ -12,7 +12,7 @@ import { Settings } from './model/Settings.js';
 import SettingsManager from './service/SettingsManager.js';
 import KubeManagerProps from './model/args/KubeManagerProps.js';
 import Util from './Util.js';
-import NewVersion from './service/NewVersion.js';
+import VersionService from './service/VersionService.js';
 
 const ARGS_PARSING_ERROR_MSG = "Error parsing the arguments, please check the help by passing -h/--help as first arg of the application.";
 
@@ -80,17 +80,17 @@ export class Main {
                     const { values } = parseArgs({ args: tmp, options: {
                         "job-name": { type: "string", short: "j" },
                         image: { type: "string", short: "i" },
-                        resources: { type: "string", short: "r" },
+                        "resources-flavor": { type: "string", short: "r" },
                         command: { type: "boolean", short: "c", default: false },
                         "dry-run": { type: "boolean", default: false }
                     }
                 });
                 this.execCmd(Cmd.Submit, sp, {
                         jobName: values["job-name"], image: values.image, 
-                        resources: values.resources,
+                        resources: values["resources-flavor"],
                         commandArgs: cmdArgs.slice(cmdPos + 1, cmdArgs.length),
                         command: values.command,
-                        dryRun: values['dry-run']
+                        dryRun: values["dry-run"]
                     });
                 } else {
                     throw new ParameterException("Missing container command separator '--'. It is needed to separate jobman's args and the actual command  passed to the container.");
@@ -140,7 +140,7 @@ export class Main {
     protected execCmd(cmd: Cmd, sp: string | null, payload: KubeManagerProps): void { 
         const s: Settings = new SettingsManager(sp).settings;
         // Check for new version
-        new NewVersion(s)
+        new VersionService(s)
             .check()
             .then(msg => msg ? console.log(msg) : () => {})
             .catch(errMesage => console.error(errMesage))

@@ -47,7 +47,10 @@
             ]
         }
     },
-    "newVersion": null,
+    "newVersion": {
+        "repository": "/home/asalic/workspace/upv/chaimeleon/jobman-1.2.5-beta.tar.gz",
+        "packageJsonPath": "jobman/package.json"
+    },
     "kubeConfig": {
         "type": "file",
         "file": "/kube_config.json"
