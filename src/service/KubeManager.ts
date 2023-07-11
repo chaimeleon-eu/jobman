@@ -145,8 +145,9 @@ export default class KubeManager {
                 }
             }
             const priorityClassName: string | undefined | null = this.settings.job.priorityClassName;
-            const command: string[] | undefined = props.command ? (props.commandArgs ? props.commandArgs :  ["/bin/sh", "-c", "echo 'No command provided to container"]) : undefined;
-            const args: string[] | undefined = props.command ? undefined : props.commandArgs;
+            const cmdArgs: string[] | undefined = props.commandArgs ? (props.commandArgs.length === 0 ? undefined : props.commandArgs) : props.commandArgs;
+            const command: string[] | undefined = props.command ? cmdArgs : undefined;
+            const args: string[] | undefined = props.command ? undefined : cmdArgs;
             job.spec = {
                 backoffLimit: 0,
                 template: {

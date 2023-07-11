@@ -32,59 +32,61 @@ export class Main {
     }
 
     public run(): number {
-            if (this.args.length <= 2) {
-                this.printV();
-                return 0;
-            }
-            
-            const argsTmp: string[] = this.args.slice(2);
-            const cmdArg: string | undefined = argsTmp[0]?.toLowerCase();
-            if (!cmdArg) {
-                this.printV();
-                return 0;
-            }
-            switch (cmdArg) {
-            
-                case "-h": 
-                case "--help": this.printH(); break;
-                case "-v":
-                case "--version": this.printV(); break;
-                case "-s":
-                case "--settings": 
-                    if (argsTmp.length >= 3) {
-                        const cmdArgTmp: string | undefined = argsTmp[2];
-                        const settingsPath:string | undefined = argsTmp[1];
-                        if (cmdArgTmp && settingsPath) {
-                            this.parseCmdArgs(cmdArgTmp, settingsPath, argsTmp.slice(2, argsTmp.length));
-                        } else {
-                            console.error(`Undefined settings path '${settingsPath}' and/or command '${cmdArgTmp}'`);
-                            return 1;
-                        }
+        if (this.args.length <= 2) {
+            this.printV();
+            return 0;
+        }
+        
+        const argsTmp: string[] = this.args.slice(2);
+        const cmdArg: string | undefined = argsTmp[0]?.toLowerCase();
+        if (!cmdArg) {
+            this.printV();
+            return 0;
+        }
+        switch (cmdArg) {
+        
+            case "-h": 
+            case "--help": this.printH(); break;
+            case "-v":
+            case "--version": this.printV(); break;
+            case "-s":
+            case "--settings": 
+                if (argsTmp.length >= 3) {
+                    const cmdArgTmp: string | undefined = argsTmp[2];
+                    const settingsPath:string | undefined = argsTmp[1];
+                    if (cmdArgTmp && settingsPath) {
+                        this.parseCmdArgs(cmdArgTmp, settingsPath, argsTmp.slice(3, argsTmp.length));
                     } else {
-                        console.error(ARGS_PARSING_ERROR_MSG);
+                        console.error(`Undefined settings path '${settingsPath}' and/or command '${cmdArgTmp}'`);
                         return 1;
                     }
-                    break;    
-                default: this.parseCmdArgs(cmdArg, null, argsTmp.slice(1, argsTmp.length)); break;
-            }
-            return 0;
+                } else {
+                    console.error(ARGS_PARSING_ERROR_MSG);
+                    return 1;
+                }
+                break;    
+            default: this.parseCmdArgs(cmdArg, null, argsTmp.slice(1, argsTmp.length)); break;
+        }
+        return 0;
     }
 
     protected parseCmdArgs(cmdArg: string, sp: string | null, cmdArgs: string[]): void {
         switch (cmdArg) {
             case "queue": this.execCmd(Cmd.Queue, sp, {}); break;
             case "submit": { 
-                const cmdPos = cmdArgs.indexOf("--");
-                if (cmdPos !== -1) {
-                    const tmp = cmdArgs.slice(0, cmdPos);
-                    const { values } = parseArgs({ args: tmp, options: {
-                        "job-name": { type: "string", short: "j" },
-                        image: { type: "string", short: "i" },
-                        "resources-flavor": { type: "string", short: "r" },
-                        command: { type: "boolean", short: "c", default: false },
-                        "dry-run": { type: "boolean", default: false }
-                    }
-                });
+                let cmdPos = cmdArgs.indexOf("--");
+                cmdPos = cmdPos === -1 ? cmdArgs.length : cmdPos;
+                //if (cmdPos !== -1) {
+
+                const tmp = cmdArgs.slice(0, cmdPos);
+                const { values } = parseArgs({ args: tmp, options: {
+                            "job-name": { type: "string", short: "j" },
+                            image: { type: "string", short: "i" },
+                            "resources-flavor": { type: "string", short: "r" },
+                            command: { type: "boolean", short: "c", default: false },
+                            "dry-run": { type: "boolean", default: false }
+                        }
+                    });
                 this.execCmd(Cmd.Submit, sp, {
                         jobName: values["job-name"], image: values.image, 
                         resources: values["resources-flavor"],
@@ -92,18 +94,18 @@ export class Main {
                         command: values.command,
                         dryRun: values["dry-run"]
                     });
-                } else {
-                    throw new ParameterException("Missing container command separator '--'. It is needed to separate jobman's args and the actual command  passed to the container.");
-                }
+                // } else {
+                //     throw new ParameterException("Missing container command separator '--'. It is needed to separate jobman's args and the actual command  passed to the container.");
+                // }
                 break;
             }
             case "list": this.execCmd(Cmd.List, sp, {}); break;
             case "images":  this.execCmd(Cmd.Images, sp, {}); break;
             case "image-details": {
-                const { values: dv } = parseArgs({ args: cmdArgs, options: {
-                    image: { type: "string", short: "i" }
-                }});
-                this.execCmd(Cmd.ImageDetails, sp, { image: dv["image"] }); 
+                    const { values: dv } = parseArgs({ args: cmdArgs, options: {
+                        image: { type: "string", short: "i" }
+                    }});
+                    this.execCmd(Cmd.ImageDetails, sp, { image: dv["image"] }); 
                 break;
             }
             case "details": {
@@ -111,8 +113,8 @@ export class Main {
                         "job-name": { type: "string", short: "j" }
                     }});
                     this.execCmd(Cmd.Details, sp, { jobName: dv["job-name"] }); 
-                    break;
-                }
+                break;
+            }
             case "log": {
                     const lv = parseArgs({ args: cmdArgs, options: {
                         "job-name": { type: "string", short: "j" }
@@ -121,8 +123,8 @@ export class Main {
                         this.execCmd(Cmd.Log, sp, { jobName: lv.values["job-name"] });
                     else
                         throw new ParameterException(`Please specify the job name for the '${cmdArg}' command.`);
-                    break;
-                }
+                break;
+            }
             case "delete": {
                     const { values: cv } = parseArgs({ args: cmdArgs, options: {
                         "job-name": { type: "string", short: "j" }
@@ -131,9 +133,9 @@ export class Main {
                         this.execCmd(Cmd.Delete, sp, { jobName: cv["job-name"] });
                     else
                         throw new ParameterException(`Please specify the job name for the '${cmdArg}' command.`);
-                    break;
-                }
-            default: throw new ParameterException(`Unknown command '${cmdArg}'. Please check the help section.`);
+                break;
+            }
+            default: throw new ParameterException(`Unknown option '${cmdArg}'`);
         }
     }
 
@@ -184,7 +186,12 @@ export function main(args: string[]): number {
     try {
         return main.run();
     } catch (e) {
-        console.error(e);
+        if (e instanceof ParameterException ||
+                (e instanceof TypeError && JSON.parse(JSON.stringify(e))["code"] === "ERR_PARSE_ARGS_UNKNOWN_OPTION")) {
+            console.error(e.message);
+        } else {
+            console.error(e);
+        }
         return 1;
     }
 }
