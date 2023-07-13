@@ -127,15 +127,21 @@ export class Main {
             }
             case "delete": {
                     const { values: cv } = parseArgs({ args: cmdArgs, options: {
-                        "job-name": { type: "string", short: "j" }
+                        "job-name": { type: "string", short: "j" },
+                        all: {type: "boolean", default: false}
                     }});
+                    if (cv["job-name"] && cv.all) {
+                        throw new ParameterException(`You cannot request to remove both all and a specific job at the same time. Use only one of the options for every invocation of jobman.`);
+                    }
                     if (cv["job-name"])
                         this.execCmd(Cmd.Delete, sp, { jobName: cv["job-name"] });
-                    else
-                        throw new ParameterException(`Please specify the job name for the '${cmdArg}' command.`);
+                    else if (cv.all) {
+                        this.execCmd(Cmd.Delete, sp, { all: true });
+                    } else
+                        throw new ParameterException(`Please specify the job name for the '${cmdArg}' command, or the "--all" flag (to remove all your jobs).`);
                 break;
             }
-            default: throw new ParameterException(`Unknown option '${cmdArg}'`);
+            default: throw new ParameterException(`Unknown command '${cmdArg}'`);
         }
     }
 
@@ -188,9 +194,9 @@ export function main(args: string[]): number {
     } catch (e) {
         if (e instanceof ParameterException ||
                 (e instanceof TypeError && JSON.parse(JSON.stringify(e))["code"] === "ERR_PARSE_ARGS_UNKNOWN_OPTION")) {
-            console.error(e.message);
+            console.error("\x1b[31m", "[ERROR]", "\x1b[0m", e.message);
         } else {
-            console.error(e);
+            console.error("\x1b[31m", "[ERROR]", "\x1b[0m", String(e));
         }
         return 1;
     }

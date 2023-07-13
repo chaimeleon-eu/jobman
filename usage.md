@@ -35,4 +35,5 @@ jobman [`<jobman_options>`] [`<command>`] [`<command_options>`]
     -j/--job-name <job_name>:  required; the name of the job for which you want to pull the log
 
 `<command_options>` for the **delete** command can be:
-    -j/--job-name <job_name>:  required; the name of the job that you want to delete
+    -j/--job-name <job_name>:  required/disallowed*; the name of the job that you want to delete; *disallowed when "--all" passed
+    --all: required/disallowed*; removes ALL jobs (independ of their status), required when "--job-name" not specified, *disallowed when the aforementioned is set

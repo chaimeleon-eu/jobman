@@ -1,8 +1,9 @@
-import { KubeConfig, BatchV1Api, V1Job, V1JobStatus, V1DeleteOptions, Watch, CoreV1Api, V1PodList, HttpError, V1Pod, V1ConfigMap, V1CephFSVolumeSource, V1Volume, V1VolumeMount, V1PodSecurityContext, V1ResourceRequirements } from '@kubernetes/client-node';
+import { KubeConfig, BatchV1Api, V1Job, V1JobStatus, V1DeleteOptions, Watch, CoreV1Api, V1PodList, HttpError, V1Pod, V1ConfigMap, V1CephFSVolumeSource, V1Volume, V1VolumeMount, V1PodSecurityContext, V1ResourceRequirements, V1Status } from '@kubernetes/client-node';
 import { v4 as uuidv4 }  from "uuid";
 import log from "loglevel";
 import fetch, { RequestInit, Response } from "node-fetch";
 import https from "https";
+import http from 'http';
 import fs from "node:fs";
 import path from "node:path";
 
@@ -26,6 +27,7 @@ import KubeResourcesPrep from './KubeResourcesPrep.js';
 import QueueResult from '../model/QueueResult.js';
 import QueueConfigMap from '../model/QueueConfigMap.js';
 import QueueResultDisplay from '../model/QueueResultDisplay.js';
+import DeleteJobHandlerResult from '../model/DeleteJobHandlerResult.js';
 
 
 
@@ -331,23 +333,69 @@ export default class KubeManager {
             const uname: string | undefined = this.clusterConfig.getCurrentUser()?.name;
             if (!uname) 
                 throw new Error("Unable to determine user name from the current context");
-            const deleteObj: V1DeleteOptions = {
-                apiVersion: 'v1',
-                propagationPolicy: 'Background'
-                }
             if (props.jobName) {
-                const ns: string = this.getNamespace();
-                log.info(`Deleting job named '${props.jobName}' for user '${this.getUsername()}' in namespace '${ns}'`);
-                const r = await this.k8sApi.deleteNamespacedJob(props.jobName, ns, 
-                    undefined, undefined, undefined, undefined, undefined, deleteObj);
-                return new KubeOpReturn(this.getStatusKubeOp(r.response.statusCode), 
-                    `Job '${props.jobName}' has been successfully deleted by user '${this.getUsername()}'`, null);
+                const r: DeleteJobHandlerResult = await this.deleteJobHandler(this.getNamespace(), props.jobName);
+                return new KubeOpReturn(r.status,  r.message, null);
+            } else if (props.all) {
+                const  r: KubeOpReturn<V1Job[]> = await this.getJobsList(this.getNamespace());
+                if (r.payload && r.payload.length > 0) {
+                    const idsStatus: Map<KubeOpReturnStatus, string[]> = new Map<KubeOpReturnStatus, string[]>()
+                    for (const j of r.payload) {
+                        if (j.metadata?.name) {
+                            const r = await this.deleteJobHandler(this.getNamespace(), j.metadata?.name);
+                            let ids: string[] | undefined = idsStatus.get(r.status);
+                            if (!ids) {
+                                ids = [];
+                            }
+                            ids.push(j.metadata?.name);
+                            idsStatus.set(r.status, ids);
+                        }
+                    }
+                    const msgs: string[] = [];
+                    if (idsStatus.has(KubeOpReturnStatus.Success)) {
+                        msgs.push(`Jobs ${idsStatus.get(KubeOpReturnStatus.Success)?.map(e => "'" + e + "'").join(", ")} have been successfully deleted`);
+                    } 
+
+                    if (idsStatus.has(KubeOpReturnStatus.Error)) {
+                        msgs.push(`Jobs ${idsStatus.get(KubeOpReturnStatus.Error)?.map(e => "'" + e + "'").join(", ")} have not been deleted due to errors`);
+                    } 
+
+                    if (idsStatus.has(KubeOpReturnStatus.Unknown)) {
+                        msgs.push(`The status for jobs ${idsStatus.get(KubeOpReturnStatus.Unknown)?.map(e => "'" + e + "'").join(", ")} have not been deleted due to errors`);
+                    } 
+                    return new KubeOpReturn(r.status, msgs.join("; "), null);
+                } else {
+                    return new KubeOpReturn(KubeOpReturnStatus.Success, "No jobs found", null);
+                }
             } else {
                 return new KubeOpReturn(KubeOpReturnStatus.Error, "Job name required", null);
             }
         } catch (e) {
             return this.handleKubeOpsError(e);
         }
+    }
+
+    protected async deleteJobHandler(namespace: string, jobName: string): Promise<DeleteJobHandlerResult> {
+        const r = await this.deleteJob(namespace, jobName);
+        const status: KubeOpReturnStatus = this.getStatusKubeOp(r.response.statusCode);
+        let message = `Job '${jobName}' has been successfully deleted by user '${namespace}'`;
+        if (status !==  KubeOpReturnStatus.Success) {
+            message = `Unable to delete job '${jobName}' with error code ${r.response.statusCode ?? "'unknown'"} and message: ${r.response.statusMessage ?? "'unknown'"}`
+        }
+        return  {message, status};
+    }
+
+    protected deleteJob(namespace: string, jobName: string): Promise<{
+        response: http.IncomingMessage;
+        body: V1Status;
+    }> {
+        const deleteObj: V1DeleteOptions = {
+            apiVersion: 'v1',
+            propagationPolicy: 'Background'
+            }
+        log.info(`Deleting job named '${jobName}' for user '${this.getUsername()}' in namespace '${namespace}'`);
+        return  this.k8sApi.deleteNamespacedJob(jobName, namespace, 
+            undefined, undefined, undefined, undefined, undefined, deleteObj);
     }
 
     protected async getConfigmap(configMapName: string, namespace?: string): Promise<V1ConfigMap> {
