@@ -1,11 +1,9 @@
-import { createRequire } from "node:module";
 import { marked } from "marked";
 import TerminalRenderer from "marked-terminal";
 import util  from 'node:util';
 import ImageDetails from "../model/ImageDetails.js";
 import JobInfo from "../model/JobInfo.js";
-const require = createRequire(import.meta.url);
-const { Table } = require('console-table-printer');
+import { Table } from "console-table-printer";
 
 import { KubeOpReturn, KubeOpReturnStatus } from "../model/KubeOpReturn.js";
 import { Settings } from "../model/Settings.js";
@@ -21,6 +19,17 @@ type SimpleMsgCallbFunction = (...args: any[]) => void;
 
 
 export default class DisplayService {
+    
+    /**
+     * The default number of columns used by all commands that output a tABLE 
+     */
+    public static DEFAULT_NO_COLUMNS = 80;
+
+    /**
+     * The no of characters used to create a margin for a column
+     */
+    public static TABLE_COL_MARGIN = 8;
+
     protected km: KubeManager;
 
     protected options: Intl.DateTimeFormatOptions = {
@@ -36,27 +45,28 @@ export default class DisplayService {
     }
 
     public queue(): void {
-        marked.setOptions({
-            // Define custom renderer
-            renderer: new TerminalRenderer()
-          });
         this.km.queue()
             .then(r => this.simpleMsg(r,  () => {
                     if (r.payload) {
+                        const enabledColumns: string[] = ["Flavor", "Jobs (total/yours)", "CPU/Memory/GPUs"];
+                        const totalNoColsAvailable = this.getTerminalNoCols() - (enabledColumns.length  * DisplayService.TABLE_COL_MARGIN);
                         const t = new Table({
-                            enabledColumns: ["Flavor", "Jobs (total/yours)", "CPU/Memory/GPUs"],
+                            enabledColumns,
                             columns: [],
                             computedColumns:[
                                 {
                                     name: "CPU/Memory/GPUs",
+                                    maxLen: Math.floor(totalNoColsAvailable * 0.30),
                                     function: (row: QueueResult) => `${row.cpu ?? "-"}/${row.memory ?? "-"}/${row.gpu ?? "-"}`, 
                                 },
                                 {
                                     name: "Flavor",
+                                    maxLen: Math.floor(totalNoColsAvailable * 0.50),
                                     function: (row: QueueResult) => row.flavor ?? "<no label>"
                                 },
                                 {
                                     name: "Jobs (total/yours)",
+                                    maxLen: Math.floor(totalNoColsAvailable * 0.20),
                                     function: (row: QueueResult) => `${row.count}/${row.userJobsCnt}`
                                 }
                             ]
@@ -75,17 +85,22 @@ export default class DisplayService {
     public images(): void {
         this.km.images().then(r => this.simpleMsg(r, 
                 () => {
+                    const enabledColumns: string[] = ["name", "Tags List"];
+                    const totalNoColsAvailable = this.getTerminalNoCols() - (enabledColumns.length  * DisplayService.TABLE_COL_MARGIN);
+                    
                     const t = new Table({
-                        enabledColumns: ["name", "Tags List"],
+                        enabledColumns,
                         columns: [
                           {
                             name: "name",
+                            maxLen: Math.floor(totalNoColsAvailable * 0.25),
                             title: "Image Name"
                           }
                         ],
                         computedColumns:[
                             {
                                 name: "Tags List",
+                                maxLen: Math.floor(totalNoColsAvailable * 0.75),
                                 function: (row: ImageDetails) => row.tags.join("  "), 
                             }
                         ]
@@ -115,24 +130,35 @@ export default class DisplayService {
     
 
     public list(): void {
+        marked.setOptions({
+            renderer: new TerminalRenderer({
+              width: this.getTerminalNoCols(),
+              reflowText: true
+            })
+          });
         this.km.list()
             .then(r => this.simpleMsg(r, 
                 () => {
+                    const enabledColumns: string[] = ["name", "status", "Launch Date"];
+                    const totalNoColsAvailable = this.getTerminalNoCols() - (enabledColumns.length  * DisplayService.TABLE_COL_MARGIN);
                     const t = new Table({
-                        enabledColumns: ["name", "status", "Launch Date"],
+                        enabledColumns,
                         columns: [
                           {
                             name: "name",
+                            maxLen: Math.floor(totalNoColsAvailable * 0.50),
                             title: "Job Name"
                           },
                           {
                             name: "status",
+                            maxLen: Math.floor(totalNoColsAvailable * 0.20),
                             title: "Status"
                           }
                         ],
                         computedColumns:[
                             {
                                 name: "Launch Date",
+                                maxLen: Math.floor(totalNoColsAvailable * 0.30),
                                 function: (row: JobInfo) => new Intl.DateTimeFormat('en-GB', this.options)
                                                 .format(row.dateLaunched), 
                             }
@@ -174,6 +200,10 @@ export default class DisplayService {
         } else {
             console.error("\x1b[31m", "[ERROR]", "\x1b[0m", op.message);
         }
+    }
+
+    protected getTerminalNoCols(): number {
+        return process.stdout.columns && process.stdout.columns > 0 ? process.stdout.columns : DisplayService.DEFAULT_NO_COLUMNS;
     }
 
 }
