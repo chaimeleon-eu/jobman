@@ -1,4 +1,23 @@
 
+// export interface KubeResourcesReqLim {
+//     memory?: string;
+//     cpu?: string;
+//     [key: string]: string;
+// }
+
+export interface KubeResources {
+    name: string;
+    resources: {
+        requests?: {
+            [key: string]: string
+        },
+        limits?: {
+            [key: string]: string
+        }
+    };
+
+}
+
 export enum KubeConfigType {
     default = "default", 
     cluster = "cluster",
@@ -11,17 +30,18 @@ export interface Affinity {
     gpu: string;
 }
 
-export interface LimitsRequests {
+export interface Resources {
+    default?: string | null;
+    label: string;
+    predefined: KubeResources[];
 
-    cpu: number;
-    memory: number;
 }
 
 export interface MountPoints {
     datalake: string,
     persistent_home: string,
-    persistent_shared_folder: string,
-    datasets: string
+    persistent_shared_folder: string;
+    datasets: string;
 
 }
 
@@ -33,17 +53,15 @@ export interface SecurityContext {
 }
 
 export interface Job {
-
-    defaultImage: string;
+    datasetsList?: string;
+    defaultImage?: string;
     imagePrefix?: string | null;
-    gpuResName: string;
     userConfigmap: string | null | undefined,
     priorityClassName?: string | null;
     securityContext?: SecurityContext | null;
-    mountPoints: MountPoints,
-    affinity: Affinity;
-    limits: LimitsRequests;
-    requests: LimitsRequests;
+    mountPoints?: MountPoints;
+    //affinity: Affinity;
+    resources: Resources;
 }
 
 export interface KubeConfigLocal {
@@ -58,11 +76,29 @@ export interface HarborConfig {
 
 }
 
+export interface JobsQueue {
+    namespace: string;
+    configmap: string;
+    gpuResources: string[];
+}
+
+export interface NewVersion {
+    repository?: string | null;
+    packageJsonPath?: string | null;
+    customMessage?: string | null;
+}
+
 export interface Settings {
     sharedNamespace: string;
     sharedConfigmap: string;
+    jobsQueue: JobsQueue;
     job: Job;
+    /**
+     * Path to a new version. Can be ommited, or left null/blank to disbale the check
+     * It supports:
+     * - a local full path to a tar.gz archive with the jobman distribution 
+     */
+    newVersion?: NewVersion | null;
     kubeConfig: KubeConfigLocal;
     harbor: HarborConfig;
-
 }

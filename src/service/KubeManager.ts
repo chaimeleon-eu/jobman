@@ -1,26 +1,33 @@
-import { KubeConfig, BatchV1Api, V1Job, V1JobStatus, V1DeleteOptions, Watch, CoreV1Api, V1PodList, HttpError, V1Pod, V1ConfigMap, V1CephFSVolumeSource, V1Volume, V1VolumeMount, V1PodSecurityContext } from '@kubernetes/client-node';
+import { KubeConfig, BatchV1Api, V1Job, V1JobStatus, V1DeleteOptions, Watch, CoreV1Api, V1PodList, HttpError, V1Pod, V1ConfigMap, V1CephFSVolumeSource, V1Volume, V1VolumeMount, V1PodSecurityContext, V1ResourceRequirements, V1Status } from '@kubernetes/client-node';
 import { v4 as uuidv4 }  from "uuid";
 import log from "loglevel";
 import fetch, { RequestInit, Response } from "node-fetch";
 import https from "https";
+import http from 'http';
 import fs from "node:fs";
 import path from "node:path";
 
 import { IJobInfo, EJobStatus } from '../model/IJobInfo.js';
 import JobInfo from '../model/JobInfo.js';
 import ParameterException from '../model/exception/ParameterException.js';
-import SubmitProps from '../model/SubmitProps.js';
-import { KubeConfigLocal, KubeConfigType, SecurityContext, Settings } from '../model/Settings.js';
-import NotImplementedException from '../model/exception/NotImplementedException.js';
+import SubmitProps from '../model/args/SubmitProps.js';
+import { KubeConfigLocal, KubeConfigType, KubeResources, SecurityContext, Settings } from '../model/Settings.js';
+//import NotImplementedException from '../model/exception/NotImplementedException.js';
 import { KubeOpReturn, KubeOpReturnStatus } from '../model/KubeOpReturn.js';
 import UnhandledValueException from '../model/exception/UnhandledValueException.js';
 import ImageDetails from '../model/ImageDetails.js';
 import HarborRepository from '../model/HarborRepository.js';
 import { HarborRespositoryArtifact } from '../model/HarborRespositoryArtifact.js';
-import { existsSync } from 'node:fs';
 import KubeException from '../model/exception/KubeException.js';
-// import { IJobVolume, JobVolumeType } from '../model/IJobVolume.js';
-// import JobVolumeMount from '../model/JobVolumeMount.js';
+import DetailsProps from '../model/args/DetailsProps.js';
+import LogProps from '../model/args/LogProps.js';
+import DeleteProps from '../model/args/DeleteProps.js';
+import ImageDetailsProps from '../model/args/ImageDetailsProps.js';
+import KubeResourcesPrep from './KubeResourcesPrep.js';
+import QueueResult from '../model/QueueResult.js';
+import QueueConfigMap from '../model/QueueConfigMap.js';
+import QueueResultDisplay from '../model/QueueResultDisplay.js';
+import DeleteJobHandlerResult from '../model/DeleteJobHandlerResult.js';
 
 
 
@@ -39,27 +46,99 @@ export default class KubeManager {
         this.watch = new Watch(this.clusterConfig);
     }
 
+    public async queue():  Promise<KubeOpReturn<QueueResultDisplay | null>> {
+        try {
+
+            const cm: V1ConfigMap = await this.getConfigmap(this.settings.jobsQueue.configmap, this.settings.jobsQueue.namespace);
+            if (cm) {
+                const queue: QueueConfigMap | null = cm.data?.[this.settings.jobsQueue.configmap] 
+                    ? JSON.parse(cm.data[this.settings.jobsQueue.configmap] ?? "") as QueueConfigMap : null;
+                const result = new Map<string, QueueResult>();
+                if (queue) {
+                    for (const j of queue.jobs) {
+                        const cpu: string | undefined = j.resources.requests?.["cpu"];
+                        const memory: string | undefined = j.resources.requests?.["memory"];
+                        let gpu: number | undefined = 0;
+                        for (const v of this.settings.jobsQueue.gpuResources) {
+                            if (j.resources.requests?.[v]) {
+                                gpu += Number(j.resources.requests[v]);
+                            }
+                        }
+
+                        let flavor  = undefined;
+                        let cnt: QueueResult | undefined = undefined;
+                        let id: string | undefined = undefined;
+                        let isUserJob = false;
+                        if (j.namespace === this.getNamespace()) {
+                            isUserJob = true;
+                        }
+                        if (j.resources.flavor) {
+                            flavor = j.resources.flavor;
+                            id = flavor;
+                        } else {
+                            //flavor = "<no label>";//`unk-${uuidv4()}`
+                            id = `${cpu}/${memory}/${gpu}`;
+                        }
+                        cnt = result.get(id);
+                        if (cnt) {
+                            cnt.count = cnt.count + 1;
+                            if (isUserJob) {
+                                cnt.userJobsCnt = cnt.userJobsCnt + 1;
+                            }
+                            result.set(id, cnt);
+                        } else {
+                            result.set(id, {
+                                id,
+                                flavor,
+                                count: 1,
+                                cpu, memory, gpu,
+                                userJobsCnt: isUserJob ? 1 : 0
+                            });
+                        }
+                        
+                        
+                    }
+                    return new KubeOpReturn(this.getStatusKubeOp(200), undefined, {result, updated: queue.updated});
+                } else {
+                    throw new KubeException("The queue is not available, please make sure the settings are correct and the CronJob has been started on the cluster.");
+                }
+            } else {
+                throw new KubeException(`Unable to retrieve configmap ${this.settings.jobsQueue.configmap}  from namespace ${this.settings.jobsQueue.namespace}`);
+            }
+        } catch (e) {
+            return this.handleKubeOpsError(e);
+        }
+    }
+
     public async submit(props: SubmitProps): Promise<KubeOpReturn<null>> {
         try {
-            if (!props.image) {
-                return new KubeOpReturn(KubeOpReturnStatus.Error,
-                    "Please specify an image and tag. Use the 'images' command to see the available images and tags for each of them.",
-                    null);
-            }
-            
-            console.log(`Parameters sent to the job's container: ${JSON.stringify(props.command)}`);
+            // if (!props.image) {
+            //     return new KubeOpReturn(KubeOpReturnStatus.Error,
+            //         "Please specify an image and tag. Use the 'images' command to see the available images and tags for each of them.",
+            //         null);
+            // } else {            
+            //console.log(`Parameters sent to the job's container: ${JSON.stringify(props.command)}`);
+            const kr: KubeResources = KubeResourcesPrep.getKubeResources(this.settings, props.resources);
             const jn: string = props.jobName ?? `job-${uuidv4()}`;
-            const cont = (this.settings.job?.imagePrefix ?? "") + (props.image ?? this.settings.job.defaultImage);
-            console.log(`Using image '${cont}'`);
+            const imageNm: string | undefined = props.image ?? this.settings.job.defaultImage;
+            if (!imageNm || imageNm.length === 0) {
+                throw new ParameterException(
+                    `Please specify an image name and a tag either using the command line parameters or defining a default value in application's settings`); 
+            }
+            const image = (this.settings.job?.imagePrefix ?? "") + imageNm;
+            console.log(`Using image '${image}'`);
             console.log("Preparing volumes...");
             const [volumes, volumeMounts] = await this.prepareJobVolumes();
-            let job: V1Job = new V1Job();
+            const job: V1Job = new V1Job();
             job.metadata = {
                 name: jn,
-                namespace: this.getNamespace()
+                namespace: this.getNamespace(),
+                annotations: {
+                    [this.settings.job.resources.label]: kr.name
+                }
             }
             job.kind = "Job";
-            let securityContext: SecurityContext | undefined | null = this.settings.job.securityContext;
+            const securityContext: SecurityContext | undefined | null = this.settings.job.securityContext;
             if (securityContext && this.settings.job.userConfigmap) {
                 const userConfigmap: V1ConfigMap = await this.getConfigmap(this.settings.job.userConfigmap);
                 const sgs: string | undefined | null = userConfigmap.data?.["ceph.gid"]
@@ -68,7 +147,9 @@ export default class KubeManager {
                 }
             }
             const priorityClassName: string | undefined | null = this.settings.job.priorityClassName;
-            const gpus = props.gpu ? {[this.settings.job.gpuResName]: "1"} : null;
+            const cmdArgs: string[] | undefined = props.commandArgs ? (props.commandArgs.length === 0 ? undefined : props.commandArgs) : props.commandArgs;
+            const command: string[] | undefined = props.command ? cmdArgs : undefined;
+            const args: string[] | undefined = props.command ? undefined : cmdArgs;
             job.spec = {
                 backoffLimit: 0,
                 template: {
@@ -82,20 +163,11 @@ export default class KubeManager {
                         containers: [
                             {
                                 name: `container-${uuidv4()}`,
-                                image: cont,
-                                command: props.command ? props.command :  ["/bin/sh", "-c", "echo 'No command provided to container"],
+                                image,
+                                ...command && {command},
+                                ...args && {args},
                                 ...volumeMounts && {volumeMounts},
-                                resources: {
-                                    requests: {
-                                        cpu: `${(props.cpus ? Number(props.cpus) : this.settings.job.requests.cpu) * 1000}m`,
-                                        memory: `${(props.memory ? Number(props.memory) : this.settings.job.requests.memory)}Gi`
-                                    }, 
-                                    limits: {
-                                        cpu: `${this.settings.job.limits.cpu * 1000}m`,
-                                        memory: `${this.settings.job.limits.memory}Gi`,
-                                        ...gpus && {...gpus}
-                                    }
-                                }
+                                resources: {...new V1ResourceRequirements(), ...kr.resources}
                             }
                         ],
                         restartPolicy: "Never",
@@ -119,10 +191,16 @@ export default class KubeManager {
                 }
 
             }
-            //log.info(`Submiting job ${jn} for user ${this.getUsername()}`);
-            const r = await this.k8sApi.createNamespacedJob(this.getNamespace(), job);
-            return new KubeOpReturn(this.getStatusKubeOp(r.response.statusCode), 
-                `Job named '${jn}' created successfully by user '${this.getUsername()}'`, null);
+            if (props.dryRun) {
+                return new KubeOpReturn(KubeOpReturnStatus.Success, "\n" + JSON.stringify(job, null, 2), null);
+
+            } else {
+                const r = await this.k8sApi.createNamespacedJob(this.getNamespace(), job);
+                return new KubeOpReturn(this.getStatusKubeOp(r.response.statusCode), 
+                    `Job named '${jn}' created successfully by user '${this.getUsername()}'`, null);
+
+            }
+            //}
         
         } catch (e) {
             return this.handleKubeOpsError(e);
@@ -132,19 +210,23 @@ export default class KubeManager {
     public async list(): Promise<KubeOpReturn<IJobInfo[] | null>> {
         try {
             const r: KubeOpReturn<V1Job[]> = (await this.getJobsList(this.getNamespace()));
-
+            // const jobsQueue: V1ConfigMap = await this.getConfigmap(
+            //     this.settings.jobsQueue.configmap, this.settings.jobsQueue.namespace);
             if (r.payload) {
-                let res: JobInfo[] = [];
+                const res: JobInfo[] = [];
                 for (const e of r.payload) {
                     const jn = e.metadata?.name;
                     if (jn) {
                         res.push({ name: jn,
-                        uid: e.metadata?.uid,
-                        status: await this.getStatusJob(jn, e.status),
-                        dateLaunched: e.metadata?.creationTimestamp,
-                        position: 0});
+                            uid: e.metadata?.uid,
+                            status: await this.getStatusJob(jn, e.status),
+                            dateLaunched: e.metadata?.creationTimestamp,
+                            position: 0//jobsQueue?.data?.["jobs"]?.find(j => j.name === jn && j.user === this.getUsername())?.
+                        });
                     }
                 }
+                res.sort(function(a,b){return (b.dateLaunched?.getTime() ?? 0) 
+                        - (a.dateLaunched?.getTime() ?? 0)});
                 return new KubeOpReturn(KubeOpReturnStatus.Success, r.message, res);
             } else {
                 return new KubeOpReturn(KubeOpReturnStatus.Success, "Empty jobs", null);
@@ -154,12 +236,38 @@ export default class KubeManager {
         }
     }
 
-    public async images(): Promise<KubeOpReturn<ImageDetails[]>> {
-        const reposUrl: string = `${this.settings.harbor.url}/api/v2.0/projects/${this.settings.harbor.project}/repositories`;
+    public async imageDetails(props: ImageDetailsProps): Promise<KubeOpReturn<string | null>> {
+        if (!props.image) {
+            return new KubeOpReturn(KubeOpReturnStatus.Error, "Please specify an image name", null);
+        }
+        const reposUrl = `${this.settings.harbor.url}/api/v2.0/projects/${this.settings.harbor.project}/repositories`;
         console.log(`Getting repos from ${reposUrl}`);
         const agent = new https.Agent({
             rejectUnauthorized: false,
           });
+        const response: Response = await this.fetchCustom(reposUrl, {agent});
+        if (response.ok) {
+            const prjRepos: HarborRepository[] = await response.json() as HarborRepository[];
+            for (const repo of prjRepos) {
+                // Get repo name, remove project name 
+                const name: string = repo.name.substring(repo.name.indexOf("/") + 1, repo.name.length);
+                if (name === props.image) {
+                    return new KubeOpReturn(KubeOpReturnStatus.Success, undefined, repo.description);
+                }
+            }
+        } else {
+            console.error(`Unable to load repositories from '${reposUrl}'`);
+        }
+        return new KubeOpReturn(KubeOpReturnStatus.Error, response.statusText, null);
+    }
+
+    public async images(): Promise<KubeOpReturn<ImageDetails[]>> {
+        const reposUrl = `${this.settings.harbor.url}/api/v2.0/projects/${this.settings.harbor.project}/repositories`;
+        console.log(`Getting repos from ${reposUrl}`);
+        const agent = new https.Agent({
+            rejectUnauthorized: false,
+          });
+          
         const response: Response = await this.fetchCustom(reposUrl, {agent});
         const result: ImageDetails[] = [];
         if (response.ok) {
@@ -167,10 +275,11 @@ export default class KubeManager {
             for (const repo of prjRepos) {
                 // Get repo name, remove project name 
                 const name: string = repo.name.substring(repo.name.indexOf("/") + 1, repo.name.length);
+                const desc: string = repo.description;
                 const tags: string[] = [];
-                result.push({name, tags})
+                result.push({name, tags, desc})
                 
-                const artsUrl: string = `${reposUrl}/${name}/artifacts`;
+                const artsUrl = `${reposUrl}/${name}/artifacts`;
                 const rArtifacts: Response = await this.fetchCustom(artsUrl, {agent});
                 if (rArtifacts.ok) {
                     const arts: HarborRespositoryArtifact[] = await rArtifacts.json() as HarborRespositoryArtifact[];
@@ -189,90 +298,115 @@ export default class KubeManager {
         return new KubeOpReturn(KubeOpReturnStatus.Error, response.statusText, result);
     }
 
-    public async details(jobName: string): Promise<KubeOpReturn<V1Job>> {
-        const r: V1Job = await (await this.k8sApi.readNamespacedJob(jobName, this.getNamespace())).body;
-        return new KubeOpReturn(KubeOpReturnStatus.Success, undefined, r);
-    }
-
-    public async log(jobName: string, follow: boolean | undefined = false, tail: number | undefined = undefined): 
-            Promise<KubeOpReturn<string | null>>{
-        try {
-                const podName: string | undefined =  (await this.getJobPodInfo(jobName))?.metadata?.name;
-                if (podName) {
-                    const ns: string = this.getNamespace();
-                    console.log(`Getting log for pod '${podName}', user '${this.getUsername()}' in namespace '${ns}'`);
-                    const log: string = await (await this.k8sCoreApi.readNamespacedPodLog(podName, ns)).body;
-                    return new KubeOpReturn(KubeOpReturnStatus.Success, undefined, !log ? "<Empty Log>" :  log);
-                } else {
-                    return new KubeOpReturn(KubeOpReturnStatus.Error, `Unable to determine the pod name for job '${jobName}'.`, null);
-                }
-        } catch (e) {
-            return this.handleKubeOpsError(e);
+    public async details(props: DetailsProps): Promise<KubeOpReturn<V1Job | null>> {
+        if (props.jobName) {
+            const r: V1Job = (await this.k8sApi.readNamespacedJob(props.jobName, this.getNamespace())).body;
+            return new KubeOpReturn(KubeOpReturnStatus.Success, undefined, r);
+        } else {
+            return new KubeOpReturn(KubeOpReturnStatus.Error, "Job name required", null);
         }
     }
 
-    public async delete(jobName: string | null = null): Promise<KubeOpReturn<null>> {
+    public async log(props: LogProps): 
+            Promise<KubeOpReturn<string | null>>{
         try {
-            const uname: string | undefined = this.clusterConfig.getCurrentUser()?.name;
-            if (!uname) 
-                throw new Error("Unable to determine user name from the current context");
-            const deleteObj: V1DeleteOptions = {
-                apiVersion: 'v1',
-                propagationPolicy: 'Background'
+            if (props.jobName) {
+                const podName: string | undefined =  (await this.getJobPodInfo(props.jobName))?.metadata?.name;
+                if (podName) {
+                    const ns: string = this.getNamespace();
+                    console.log(`Getting log for pod '${podName}', user '${this.getUsername()}' in namespace '${ns}'`);
+                    const log: string = (await this.k8sCoreApi.readNamespacedPodLog(podName, ns)).body;
+                    return new KubeOpReturn(KubeOpReturnStatus.Success, undefined, !log ? "<Empty Log>" :  log);
+                } else {
+                    return new KubeOpReturn(KubeOpReturnStatus.Error, `Unable to determine the pod name for job '${props.jobName}'.`, null);
                 }
-            //let response = new Map();
-            if (jobName) {
-                const ns: string = this.getNamespace();
-                log.info(`Deleting job named '${jobName}' for user '${this.getUsername()}' in namespace '${ns}'`);
-                const r = await this.k8sApi.deleteNamespacedJob(jobName, ns, 
-                    undefined, undefined, undefined, undefined, undefined, deleteObj);
-        //         let deleted: boolean = false;
-        //         const req = await this.watch.watch(
-        //             '/api/v1/namespaces',
-
-        // {
-        //     allowWatchBookmarks: true,
-        // },
-        // // callback is called for each received object.
-        // (type, apiObj, watchObj) => {
-        //     if (type === 'DELETED') {
-        //         deleted = true;
-        //     }
-        // },
-        // (err) => {
-        //     // tslint:disable-next-line:no-console
-        //     console.log(err);
-        // })
-        // .then((req) => {
-        //             // watch returns a request object which you can use to abort the watch.
-        //             setTimeout(() => { 
-        //                 if (deleted)
-        //                     req.abort(); 
-        //             }, 100);
-        //             //onDeleted(req);
-        //         });
-                
-
-                //response.set(jobName, r.response.statusMessage);
-                return new KubeOpReturn(this.getStatusKubeOp(r.response.statusCode), 
-                    `Job '${jobName}' has been successfully deleted by user '${this.getUsername()}'`, null);
             } else {
-                throw new NotImplementedException("Not implemented for case when job name not specified");
+                return new KubeOpReturn(KubeOpReturnStatus.Error, "Job name required", null);
             }
         } catch (e) {
             return this.handleKubeOpsError(e);
         }
     }
 
-    protected async getConfigmap(configMapName: string): Promise<V1ConfigMap> {
-            return await (await this.k8sCoreApi.readNamespacedConfigMap(configMapName, this.getNamespace())).body;
+    public async delete(props: DeleteProps): Promise<KubeOpReturn<null>> {
+        try {
+            const uname: string | undefined = this.clusterConfig.getCurrentUser()?.name;
+            if (!uname) 
+                throw new Error("Unable to determine user name from the current context");
+            if (props.jobName) {
+                const r: DeleteJobHandlerResult = await this.deleteJobHandler(this.getNamespace(), props.jobName);
+                return new KubeOpReturn(r.status,  r.message, null);
+            } else if (props.all) {
+                const  r: KubeOpReturn<V1Job[]> = await this.getJobsList(this.getNamespace());
+                if (r.payload && r.payload.length > 0) {
+                    const idsStatus: Map<KubeOpReturnStatus, string[]> = new Map<KubeOpReturnStatus, string[]>()
+                    for (const j of r.payload) {
+                        if (j.metadata?.name) {
+                            const r = await this.deleteJobHandler(this.getNamespace(), j.metadata?.name);
+                            let ids: string[] | undefined = idsStatus.get(r.status);
+                            if (!ids) {
+                                ids = [];
+                            }
+                            ids.push(j.metadata?.name);
+                            idsStatus.set(r.status, ids);
+                        }
+                    }
+                    const msgs: string[] = [];
+                    if (idsStatus.has(KubeOpReturnStatus.Success)) {
+                        msgs.push(`Jobs ${idsStatus.get(KubeOpReturnStatus.Success)?.map(e => "'" + e + "'").join(", ")} have been successfully deleted`);
+                    } 
+
+                    if (idsStatus.has(KubeOpReturnStatus.Error)) {
+                        msgs.push(`Jobs ${idsStatus.get(KubeOpReturnStatus.Error)?.map(e => "'" + e + "'").join(", ")} have not been deleted due to errors`);
+                    } 
+
+                    if (idsStatus.has(KubeOpReturnStatus.Unknown)) {
+                        msgs.push(`The status for jobs ${idsStatus.get(KubeOpReturnStatus.Unknown)?.map(e => "'" + e + "'").join(", ")} have not been deleted due to errors`);
+                    } 
+                    return new KubeOpReturn(r.status, msgs.join("; "), null);
+                } else {
+                    return new KubeOpReturn(KubeOpReturnStatus.Success, "No jobs found", null);
+                }
+            } else {
+                return new KubeOpReturn(KubeOpReturnStatus.Error, "Job name required", null);
+            }
+        } catch (e) {
+            return this.handleKubeOpsError(e);
+        }
+    }
+
+    protected async deleteJobHandler(namespace: string, jobName: string): Promise<DeleteJobHandlerResult> {
+        const r = await this.deleteJob(namespace, jobName);
+        const status: KubeOpReturnStatus = this.getStatusKubeOp(r.response.statusCode);
+        let message = `Job '${jobName}' has been successfully deleted by user '${namespace}'`;
+        if (status !==  KubeOpReturnStatus.Success) {
+            message = `Unable to delete job '${jobName}' with error code ${r.response.statusCode ?? "'unknown'"} and message: ${r.response.statusMessage ?? "'unknown'"}`
+        }
+        return  {message, status};
+    }
+
+    protected deleteJob(namespace: string, jobName: string): Promise<{
+        response: http.IncomingMessage;
+        body: V1Status;
+    }> {
+        const deleteObj: V1DeleteOptions = {
+            apiVersion: 'v1',
+            propagationPolicy: 'Background'
+            }
+        log.info(`Deleting job named '${jobName}' for user '${this.getUsername()}' in namespace '${namespace}'`);
+        return  this.k8sApi.deleteNamespacedJob(jobName, namespace, 
+            undefined, undefined, undefined, undefined, undefined, deleteObj);
+    }
+
+    protected async getConfigmap(configMapName: string, namespace?: string): Promise<V1ConfigMap> {
+            return (await this.k8sCoreApi.readNamespacedConfigMap(configMapName, namespace ?? this.getNamespace())).body;
     }
 
     protected async prepareJobVolumes(): Promise<[V1Volume[] | undefined, V1VolumeMount[] | undefined]> {
         if (this.settings.job.userConfigmap) {
             const userConfigmap: V1ConfigMap = await this.getConfigmap(this.settings.job.userConfigmap );
-            if (userConfigmap) {
-                let vs: V1Volume[] = [
+            if (userConfigmap && this.settings.job.mountPoints) {
+                const vs: V1Volume[] = [
                     {
                         name: "datalake",
                         cephfs: this.defJobVolume(userConfigmap,
@@ -289,7 +423,7 @@ export default class KubeManager {
                             userConfigmap.data?.["persistent_shared_folder.path"] ?? "/", false)
                     }
                 ];
-                let vms: V1VolumeMount[] = [
+                const vms: V1VolumeMount[] = [
                     {
                         name: "datalake",
                         mountPath: this.settings.job.mountPoints.datalake
@@ -304,21 +438,34 @@ export default class KubeManager {
                     }
                 ];
                 // Mount datasets
-                const dirs: string[] = fs.readdirSync(this.settings.job.mountPoints.datasets)
-                    .filter((f: any) => fs.statSync(path.join(this.settings.job.mountPoints.datasets, f)).isDirectory());
+                // const dirs: string[] = fs.readdirSync(this.settings.job.mountPoints.datasets)
+                //     .filter((f: any) => fs.statSync(path.join(this.settings.job.mountPoints?.datasets ?? "", f)).isDirectory());
+                // Read the list of datasets from file
+                let dirs: string[] | undefined = undefined;
+                if (this.settings.job.datasetsList && this.settings.job.datasetsList.length > 0) {
+                    try {
+                        dirs = fs.readFileSync(this.settings.job.datasetsList, "ascii")?.replaceAll("\n", "")?.split(",");
+                    } catch (e) {
+                        throw new ParameterException(`Cannot open the datasets list at ${this.settings.job.datasetsList}. If you don't intend to mount access any dataset please remove the "datasetsList" option in settings -> job`);
+                    }
+                }
 
                 const pt: string | undefined = userConfigmap.data?.["datasets.path"];
                 if (pt) {
-                    for (const dir of dirs) {
-                            vs.push({
-                                name: dir,
-                                cephfs: this.defJobVolume(userConfigmap,  path.join(pt, dir), true)
+                    if (dirs) {
+                        for (const dir of dirs) {
+                                vs.push({
+                                    name: dir,
+                                    cephfs: this.defJobVolume(userConfigmap,  path.join(pt, dir), true)
 
-                            });
-                            vms.push({
-                                name: dir,
-                                mountPath: path.join(this.settings.job.mountPoints.datasets, dir)
-                            });
+                                });
+                                vms.push({
+                                    name: dir,
+                                    mountPath: path.join(this.settings.job.mountPoints.datasets, dir)
+                                });
+                        }
+                    } else {
+                        console.warn("the list of datasets to be mounted is empty. If this is not by design, please ensure that the path defined in settings for \"datasetsList\" is correct, and the file has the correct format/not empty.")   
                     }
                 } else {
                     throw new ParameterException(`Missing 'datasets.path' entry in user configmap '${this.settings.job.userConfigmap}'`);
@@ -336,15 +483,14 @@ export default class KubeManager {
         
         return {monitors, user, secretRef: {name: "ceph-auth"}, readOnly, path};
     }
-
+    
     protected async getJobPodInfo(jobName: string): Promise<V1Pod | undefined> {
-        const r: V1Job = await (await this.k8sApi.readNamespacedJob(jobName, this.getNamespace())).body;
+        const r: V1Job = (await this.k8sApi.readNamespacedJob(jobName, this.getNamespace())).body;
         const cUid: string | undefined = r?.metadata?.labels?.["controller-uid"];
         if (cUid) {
             const podLblSel: string = "controller-uid=" + cUid;
-            const pods: V1PodList = await (await this.k8sCoreApi.listNamespacedPod(this.getNamespace(), 
+            const pods: V1PodList = (await this.k8sCoreApi.listNamespacedPod(this.getNamespace(), 
                 undefined, undefined, undefined, undefined, podLblSel)).body;
-            //console.log(pods.items[0]?.status);
             return pods.items[0];
         } else {
             throw new KubeException(`Unable to determine controller UID for job '${jobName}'.`);
@@ -397,13 +543,13 @@ export default class KubeManager {
     }
 
     protected loadKubeConfig(cfg: KubeConfigLocal): KubeConfig {
-        let clusterConfigTmp = new KubeConfig();
+        const clusterConfigTmp = new KubeConfig();
         if (cfg.type === KubeConfigType.default) {
             clusterConfigTmp.loadFromDefault();
         } else if (cfg.type === KubeConfigType.cluster) {
             clusterConfigTmp.loadFromCluster();
         } else if (cfg.type === KubeConfigType.file) {
-            if (cfg.file && existsSync(cfg.file)) {
+            if (cfg.file && fs.existsSync(cfg.file)) {
                 clusterConfigTmp.loadFromFile(cfg.file);
             } else {
                 throw new ParameterException(`Please set kubernetes config file path in the settings`)
@@ -427,7 +573,7 @@ export default class KubeManager {
     protected handleKubeOpsError(e: any): KubeOpReturn<null> {
         if (e instanceof HttpError) {
             return new KubeOpReturn(KubeOpReturnStatus.Error, `Error message from Kubernetes: ${e.body.message}`, null);
-        } if (e instanceof Error || e instanceof KubeException) {
+        } else if (e instanceof Error || e instanceof KubeException || e instanceof ParameterException) {
             return new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null);
         } else {
             return new KubeOpReturn(KubeOpReturnStatus.Error, `Unknown error: ${JSON.stringify(e)}`, null);
@@ -438,7 +584,7 @@ export default class KubeManager {
     protected getNamespace(): string {
         const nm: string | undefined = this.clusterConfig.getContexts().filter(c => c.name === this.clusterConfig.getCurrentContext())?.[0]?.namespace;
         if (!nm)
-            throw new KubeException("Unable to determine namespace");//this.getUsername();
+            throw new KubeException("Unable to determine namespace");
         else   
             return nm;
     }
@@ -446,4 +592,5 @@ export default class KubeManager {
     protected fetchCustom(url: string, init?: RequestInit): Promise<Response> {
         return fetch(url, init);
     }
+    
 }
