@@ -1,10 +1,15 @@
 {
-    "sharedNamespace": "zz-shared",
+    "sharedNamespace": "default",
     "sharedConfigmap": "jobman-jobs-config",
+    "jobsQueue": {
+        "namespace": "default",
+        "configmap": "jobman-queue-position",
+        "gpuResources": [ ]
+    },
     "job": {
-        "defaultImage": "default",
+        "datasetsList": "datasets.txt",
+        "defaultImage": null,
         "imagePrefix": null,
-        "gpuResName": "nvidia.com/gpu",
         "userConfigmap": null,
         "datasetsEnvVar": "CHAIMELEON_DATASETS",
         "priorityClassName": null,
@@ -15,23 +20,21 @@
             "supplementalGroups": []
         },
         "mountPoints": {
-            "datalake": null,
-            "persistent_home": null,
-            "persistent_shared_folder": null,
-            "datasets": null
+            "datalake": "none",
+            "persistent_home": "none",
+            "persistent_shared_folder": "none",
+            "datasets": "none"
         },
-        "affinity": {
-            "cpu": "NODE_WITH_CPUS_NO_GPU",
-            "gpu": "NODE WITH GPU"
-        },
-        "requests": {
-            "cpu": 1,
-            "memory": 1
-        },
-        "limits": {
-            "cpu": 1,
-            "memory": 1
+        "resources": {
+            "default": null,
+            "label": null,
+            "predefined": []
         }
+    },
+    "newVersion": {
+        "repository": null,
+        "packageJsonPath": null,
+        "customMessage": null
     },
     "kubeConfig": {
         "type": "file",
