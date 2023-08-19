@@ -59,7 +59,8 @@ export default class VersionService {
                                             const cVer: string | undefined = process.env["npm_package_version"];
                                             const newVer: string | undefined = pkgObj["version"];
                                             if (newVer) {
-                                                const msg = cVer?.toLowerCase()?.localeCompare(newVer.toLowerCase()) ?
+                                                const comp: number | undefined = cVer?.toLowerCase()?.localeCompare(newVer.toLowerCase());
+                                                const msg = comp && comp < 0 ?
                                                     `\nA new version  of jobman, ${newVer}, is available.\n${this.newVersion?.customMessage ?? ""}\n` : null;
                                                 resolve(msg);
                                             } else {
