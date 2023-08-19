@@ -28,10 +28,13 @@ import QueueResult from '../model/QueueResult.js';
 import QueueConfigMap from '../model/QueueConfigMap.js';
 import QueueResultDisplay from '../model/QueueResultDisplay.js';
 import DeleteJobHandlerResult from '../model/DeleteJobHandlerResult.js';
+import LoggerService from './LoggerService.js';
 
 
 
 export default class KubeManager {
+
+    protected logger: LoggerService;
     protected clusterConfig: KubeConfig;
     protected k8sApi: BatchV1Api;
     protected k8sCoreApi: CoreV1Api;
@@ -39,6 +42,7 @@ export default class KubeManager {
     protected watch: Watch;
 
     public constructor(settings: Settings) {
+        this.logger = new LoggerService();
         this.settings = settings;
         this.clusterConfig = this.loadKubeConfig(settings.kubeConfig);
         this.k8sApi = this.clusterConfig.makeApiClient(BatchV1Api);
@@ -443,29 +447,39 @@ export default class KubeManager {
                 // Read the list of datasets from file
                 let dirs: string[] | undefined = undefined;
                 if (this.settings.job.datasetsList && this.settings.job.datasetsList.length > 0) {
+                    let ids: string | undefined = undefined;
                     try {
-                        dirs = fs.readFileSync(this.settings.job.datasetsList, "ascii")?.replaceAll("\n", "")?.split(",");
+                        ids = fs.readFileSync(this.settings.job.datasetsList, "ascii");
+                            
                     } catch (e) {
-                        throw new ParameterException(`Cannot open the datasets list at ${this.settings.job.datasetsList}. If you don't intend to mount access any dataset please remove the "datasetsList" option in settings -> job`);
+                        //throw new ParameterException(
+                            this.logger.warn(`Cannot open the datasets list at ${this.settings.job.datasetsList}. If you don't intend to mount access any dataset please remove the "datasetsList" option in settings -> job`
+                            );
                     }
+                    dirs = ids?.replaceAll((/ |\r\n|\n|\r/gm), "")
+                        ?.split(",").filter(e => e.length > 0);
                 }
 
                 const pt: string | undefined = userConfigmap.data?.["datasets.path"];
                 if (pt) {
                     if (dirs) {
-                        for (const dir of dirs) {
-                                vs.push({
-                                    name: dir,
-                                    cephfs: this.defJobVolume(userConfigmap,  path.join(pt, dir), true)
+                        if (dirs.length > 0) {
+                            for (const dir of dirs) {
+                                    vs.push({
+                                        name: dir,
+                                        cephfs: this.defJobVolume(userConfigmap,  path.join(pt, dir), true)
 
-                                });
-                                vms.push({
-                                    name: dir,
-                                    mountPath: path.join(this.settings.job.mountPoints.datasets, dir)
-                                });
+                                    });
+                                    vms.push({
+                                        name: dir,
+                                        mountPath: path.join(this.settings.job.mountPoints.datasets, dir)
+                                    });
+                            }
+                        } else {
+                            this.logger.warn("Empty 'datasets.txt', no dataset will be mounted");
                         }
                     } else {
-                        console.warn("the list of datasets to be mounted is empty. If this is not by design, please ensure that the path defined in settings for \"datasetsList\" is correct, and the file has the correct format/not empty.")   
+                        this.logger.warn("The list of datasets to be mounted is empty. If this is not by design, please ensure that the path defined in settings for \"datasetsList\" is correct, and the file has the correct format/not empty.")   
                     }
                 } else {
                     throw new ParameterException(`Missing 'datasets.path' entry in user configmap '${this.settings.job.userConfigmap}'`);
