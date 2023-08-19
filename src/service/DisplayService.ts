@@ -6,7 +6,7 @@ import JobInfo from "../model/JobInfo.js";
 import { Table } from "console-table-printer";
 
 import { KubeOpReturn, KubeOpReturnStatus } from "../model/KubeOpReturn.js";
-import { Settings } from "../model/Settings.js";
+import { KubeResourcesFlavor, Settings } from "../model/Settings.js";
 import SubmitProps from "../model/args/SubmitProps.js";
 import KubeManager from "./KubeManager.js";
 import DetailsProps from "../model/args/DetailsProps.js";
@@ -190,6 +190,56 @@ export default class DisplayService {
             .catch(e => this.simpleMsg(new KubeOpReturn(KubeOpReturnStatus.Error, e.message, null)));
     }
 
+    public resourcesFlavors(): void {
+        const r: KubeOpReturn<KubeResourcesFlavor[] | undefined> = this.km.resourcesFlavors();
+        this.simpleMsg(r, 
+        () => {
+            const enabledColumns: string[] = ["name", "CPU*", "Memory*", "GPU**", "description"];
+            const totalNoColsAvailable = this.getTerminalNoCols() - (enabledColumns.length  * DisplayService.TABLE_COL_MARGIN);
+            
+            const t = new Table({
+                enabledColumns,
+                columns: [
+                    {
+                    name: "name",
+                    maxLen: Math.floor(totalNoColsAvailable * 0.2),
+                    title: "Name"
+                    },
+                    {
+                    name: "description",
+                    maxLen: Math.floor(totalNoColsAvailable * 0.35),
+                    title: "Description"
+                    }
+                ],
+                computedColumns:[
+                    {
+                        name: "CPU*",
+                        maxLen: Math.floor(totalNoColsAvailable * 0.15),
+                        function: (row: KubeResourcesFlavor) => `${row.resources?.requests?.["cpu"] ?? "-"} / ${row.resources?.limits?.["cpu"] ?? "-"}`
+                    },
+                    {
+                        name: "Memory*",
+                        maxLen: Math.floor(totalNoColsAvailable * 0.15),
+                        function: (row: KubeResourcesFlavor) => `${row.resources?.requests?.["memory"] ?? "-"} / ${row.resources?.limits?.["memory"] ?? "-"}`
+                    },
+                    {
+                        name: "GPU**",
+                        maxLen: Math.floor(totalNoColsAvailable * 0.15),
+                        function: (row: KubeResourcesFlavor) => 
+                            `${row.resources?.requests?.["nvidia.com/gpu"] ?? "-"}`
+                            + ` / ${row.resources?.requests?.["amd.com/gpu"] ?? "-"}`
+                            + ` / ${row.resources?.requests?.["intel.com/gpu"] ?? "-"}`
+                    }
+                ]
+            });
+            t.addRows(r.payload);
+            t.printTable();
+            console.log();
+            console.log("*First value is for request, second for limits");
+            console.log("**First value represents the total count of NVIDIA GPUS, followed by that of AMD GPUs, and, finally, Intel's");
+        });
+    }
+
     protected simpleMsg(op: KubeOpReturn<any>, displayFunc: SimpleMsgCallbFunction | undefined = undefined): void {
         if (op.isOk()) {
             if (displayFunc) {
@@ -197,6 +247,8 @@ export default class DisplayService {
             } else {
                 console.log("\x1b[32m", "[SUCCESS]", "\x1b[0m", op.message);
             }
+        } else if (op.isWarning()) {
+            console.log("\x1b[33m", "[WARNING]", "\x1b[0m", op.message);
         } else {
             console.error("\x1b[31m", "[ERROR]", "\x1b[0m", op.message);
         }

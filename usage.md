@@ -16,6 +16,7 @@ jobman [`<jobman_options>`] [`<command>`] [`<command_options>`]
     details:  displays the details of a specific, existing job; it outputs a JSON with all the information held by Kubernetes about a specific job, including its detailed status and  information about the underlying pod
     log:  shows the log of a specific, existing job
     delete:  removes a specific, existing job
+    resources-flavors: lists the predefined resources flavors available in the application's settings files
 
 `<command_options>` for the **image-details** command can be:
     -i/--image <image_name>:  required; the image name which you want to get the description for from Harbor

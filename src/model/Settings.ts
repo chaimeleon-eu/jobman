@@ -5,8 +5,9 @@
 //     [key: string]: string;
 // }
 
-export interface KubeResources {
+export interface KubeResourcesFlavor {
     name: string;
+    description?: string | null;
     resources: {
         requests?: {
             [key: string]: string
@@ -33,7 +34,7 @@ export interface Affinity {
 export interface Resources {
     default?: string | null;
     label: string;
-    predefined: KubeResources[];
+    predefined?: KubeResourcesFlavor[];
 
 }
 

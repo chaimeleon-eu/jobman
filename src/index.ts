@@ -17,7 +17,7 @@ import VersionService from './service/VersionService.js';
 const ARGS_PARSING_ERROR_MSG = "Error parsing the arguments, please check the help by passing -h/--help as first arg of the application.";
 
 export enum Cmd {
-    Queue, Images, ImageDetails, Submit, List, Details, Log, Delete
+    Queue, Images, ImageDetails, Submit, List, Details, Log, Delete, ResourcesFlavors
 }
 
 
@@ -141,6 +141,7 @@ export class Main {
                         throw new ParameterException(`Please specify the job name for the '${cmdArg}' command, or the "--all" flag (to remove all your jobs).`);
                 break;
             }
+            case "resources-flavors": this.execCmd(Cmd.ResourcesFlavors, sp, {}); break;
             default: throw new ParameterException(`Unknown command '${cmdArg}'`);
         }
     }
@@ -164,6 +165,7 @@ export class Main {
                     case Cmd.Details: ds.details(payload); break;
                     case Cmd.Log: ds.log(payload); break;
                     case Cmd.Delete: ds.delete(payload); break;
+                    case Cmd.ResourcesFlavors: ds.resourcesFlavors(); break;
                     default: console.error(ARGS_PARSING_ERROR_MSG);
                 }
             });

@@ -11,7 +11,7 @@ import { IJobInfo, EJobStatus } from '../model/IJobInfo.js';
 import JobInfo from '../model/JobInfo.js';
 import ParameterException from '../model/exception/ParameterException.js';
 import SubmitProps from '../model/args/SubmitProps.js';
-import { KubeConfigLocal, KubeConfigType, KubeResources, SecurityContext, Settings } from '../model/Settings.js';
+import { KubeConfigLocal, KubeConfigType, KubeResourcesFlavor, SecurityContext, Settings } from '../model/Settings.js';
 //import NotImplementedException from '../model/exception/NotImplementedException.js';
 import { KubeOpReturn, KubeOpReturnStatus } from '../model/KubeOpReturn.js';
 import UnhandledValueException from '../model/exception/UnhandledValueException.js';
@@ -122,7 +122,7 @@ export default class KubeManager {
             //         null);
             // } else {            
             //console.log(`Parameters sent to the job's container: ${JSON.stringify(props.command)}`);
-            const kr: KubeResources = KubeResourcesPrep.getKubeResources(this.settings, props.resources);
+            const kr: KubeResourcesFlavor = KubeResourcesPrep.getKubeResources(this.settings, props.resources);
             const jn: string = props.jobName ?? `job-${uuidv4()}`;
             const imageNm: string | undefined = props.image ?? this.settings.job.defaultImage;
             if (!imageNm || imageNm.length === 0) {
@@ -377,6 +377,15 @@ export default class KubeManager {
         } catch (e) {
             return this.handleKubeOpsError(e);
         }
+    }
+
+    public resourcesFlavors(): KubeOpReturn<KubeResourcesFlavor[] | undefined> {
+        if (this.settings.job.resources.predefined && this.settings.job.resources.predefined.length > 0) {
+            return new KubeOpReturn(KubeOpReturnStatus.Success, undefined, this.settings.job.resources.predefined);
+        } else {
+            return new KubeOpReturn(KubeOpReturnStatus.Warning, "No predefined flavors found in the application's settings files.", undefined);
+        }
+
     }
 
     protected async deleteJobHandler(namespace: string, jobName: string): Promise<DeleteJobHandlerResult> {

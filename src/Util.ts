@@ -15,4 +15,12 @@ export default class Util {
         }
         return r;
     }
+
+    public static getKubeResourcesGPUsName(): string[] {
+        return [
+            "nvidia.com/gpu",
+            "amd.com/gpu",
+            "intel.com/gpu"
+        ];
+    }
 }
