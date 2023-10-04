@@ -1,17 +1,20 @@
-import { KubeConfig, BatchV1Api, V1Job, V1JobStatus, V1DeleteOptions, Watch, CoreV1Api, V1PodList, HttpError, V1Pod, V1ConfigMap, V1CephFSVolumeSource, V1Volume, V1VolumeMount, V1PodSecurityContext, V1ResourceRequirements, V1Status } from '@kubernetes/client-node';
+import { KubeConfig, BatchV1Api, V1Job, V1JobStatus, V1DeleteOptions, Watch, 
+        CoreV1Api, V1PodList, HttpError, V1Pod, V1ConfigMap, V1CephFSVolumeSource, 
+        //V1Volume, V1VolumeMount, 
+        V1PodSecurityContext, V1ResourceRequirements, V1Status } from '@kubernetes/client-node';
 import { v4 as uuidv4 }  from "uuid";
 import log from "loglevel";
 import fetch, { RequestInit, Response } from "node-fetch";
 import https from "https";
 import http from 'http';
 import fs from "node:fs";
-import path from "node:path";
+//import path from "node:path";
 
 import { IJobInfo, EJobStatus } from '../model/IJobInfo.js';
 import JobInfo from '../model/JobInfo.js';
 import ParameterException from '../model/exception/ParameterException.js';
 import SubmitProps from '../model/args/SubmitProps.js';
-import { KubeConfigLocal, KubeConfigType, KubeResourcesFlavor, SecurityContext, Settings } from '../model/Settings.js';
+import { KubeConfigLocal, KubeConfigType, KubeResourcesFlavor, SecurityContext, Settings, AnnotationType } from '../model/Settings.js';
 //import NotImplementedException from '../model/exception/NotImplementedException.js';
 import { KubeOpReturn, KubeOpReturnStatus } from '../model/KubeOpReturn.js';
 import UnhandledValueException from '../model/exception/UnhandledValueException.js';
@@ -29,7 +32,6 @@ import QueueConfigMap from '../model/QueueConfigMap.js';
 import QueueResultDisplay from '../model/QueueResultDisplay.js';
 import DeleteJobHandlerResult from '../model/DeleteJobHandlerResult.js';
 import LoggerService from './LoggerService.js';
-
 
 
 export default class KubeManager {
@@ -123,7 +125,7 @@ export default class KubeManager {
             // } else {            
             //console.log(`Parameters sent to the job's container: ${JSON.stringify(props.command)}`);
             const kr: KubeResourcesFlavor = KubeResourcesPrep.getKubeResources(this.settings, props.resources);
-            const jn: string = props.jobName ?? `job-${uuidv4()}`;
+            const jn: string = props.jobName ?? `jobman-${uuidv4()}`;
             const imageNm: string | undefined = props.image ?? this.settings.job.defaultImage;
             if (!imageNm || imageNm.length === 0) {
                 throw new ParameterException(
@@ -131,15 +133,14 @@ export default class KubeManager {
             }
             const image = (this.settings.job?.imagePrefix ?? "") + imageNm;
             console.log(`Using image '${image}'`);
-            console.log("Preparing volumes...");
-            const [volumes, volumeMounts] = await this.prepareJobVolumes();
+            //console.log("Preparing volumes...");
+            //const [volumes, volumeMounts] = await this.prepareJobVolumes();
             const job: V1Job = new V1Job();
+            const annotations = this.getAnnotations(kr);
             job.metadata = {
                 name: jn,
                 namespace: this.getNamespace(),
-                annotations: {
-                    [this.settings.job.resources.label]: kr.name
-                }
+                ...annotations && {annotations}
             }
             job.kind = "Job";
             const securityContext: SecurityContext | undefined | null = this.settings.job.securityContext;
@@ -161,16 +162,16 @@ export default class KubeManager {
                         name: jn
                     },
                     spec: {
-                        ...securityContext && {...new V1PodSecurityContext(), ...securityContext},
+                        ...securityContext && {securityContext: {...new V1PodSecurityContext(), ...securityContext} },
                         ...priorityClassName && {priorityClassName},
-                        ...volumes && {volumes},
+                        //...volumes && {volumes},
                         containers: [
                             {
                                 name: `container-${uuidv4()}`,
                                 image,
                                 ...command && {command},
                                 ...args && {args},
-                                ...volumeMounts && {volumeMounts},
+                                //...volumeMounts && {volumeMounts},
                                 resources: {...new V1ResourceRequirements(), ...kr.resources}
                             }
                         ],
@@ -388,6 +389,28 @@ export default class KubeManager {
 
     }
 
+    protected getAnnotations(kr: KubeResourcesFlavor): { [key: string]: string; } | null {
+
+        const r = Object.create(null);
+        if (this.settings.job.resources.label) {
+            r[this.settings.job.resources.label] = kr.name;
+        }
+        if (this.settings.job.annotations) {
+            for (const a of this.settings.job.annotations) {
+                switch (a.valueType) {
+                    case AnnotationType.env: {
+                        if (process.env[a.value])
+                            r[a.key] = process.env[a.value]; 
+                        break;
+                    }
+                    case AnnotationType.string: r[a.key] = a.value; break;
+                    default: throw new UnhandledValueException(`Annotation type '${a.valueType}' not handled for key '${a.key}' and value '${a.value}`);
+                }
+            }
+        }
+        return Object.keys(r).length > 0 ? r : null;
+    } 
+
     protected async deleteJobHandler(namespace: string, jobName: string): Promise<DeleteJobHandlerResult> {
         const r = await this.deleteJob(namespace, jobName);
         const status: KubeOpReturnStatus = this.getStatusKubeOp(r.response.statusCode);
@@ -415,89 +438,89 @@ export default class KubeManager {
             return (await this.k8sCoreApi.readNamespacedConfigMap(configMapName, namespace ?? this.getNamespace())).body;
     }
 
-    protected async prepareJobVolumes(): Promise<[V1Volume[] | undefined, V1VolumeMount[] | undefined]> {
-        if (this.settings.job.userConfigmap) {
-            const userConfigmap: V1ConfigMap = await this.getConfigmap(this.settings.job.userConfigmap );
-            if (userConfigmap && this.settings.job.mountPoints) {
-                const vs: V1Volume[] = [
-                    {
-                        name: "datalake",
-                        cephfs: this.defJobVolume(userConfigmap,
-                                    userConfigmap.data?.["datalake.path"] ?? "/", true)
-                    },
-                    {
-                        name: "home",
-                        cephfs: this.defJobVolume(userConfigmap, 
-                            userConfigmap.data?.["persistent_home.path"] ?? "/", false)
-                    },
-                    {
-                        name: "shared-folder",
-                        cephfs: this.defJobVolume(userConfigmap, 
-                            userConfigmap.data?.["persistent_shared_folder.path"] ?? "/", false)
-                    }
-                ];
-                const vms: V1VolumeMount[] = [
-                    {
-                        name: "datalake",
-                        mountPath: this.settings.job.mountPoints.datalake
-                    },
-                    {
-                        name: "home",
-                        mountPath: this.settings.job.mountPoints.persistent_home
-                    },
-                    {
-                        name: "shared-folder",
-                        mountPath: this.settings.job.mountPoints.persistent_shared_folder
-                    }
-                ];
-                // Mount datasets
-                // const dirs: string[] = fs.readdirSync(this.settings.job.mountPoints.datasets)
-                //     .filter((f: any) => fs.statSync(path.join(this.settings.job.mountPoints?.datasets ?? "", f)).isDirectory());
-                // Read the list of datasets from file
-                let dirs: string[] | undefined = undefined;
-                if (this.settings.job.datasetsList && this.settings.job.datasetsList.length > 0) {
-                    let ids: string | undefined = undefined;
-                    try {
-                        ids = fs.readFileSync(this.settings.job.datasetsList, "ascii");
+    // protected async prepareJobVolumes(): Promise<[V1Volume[] | undefined, V1VolumeMount[] | undefined]> {
+    //     if (this.settings.job.userConfigmap) {
+    //         const userConfigmap: V1ConfigMap = await this.getConfigmap(this.settings.job.userConfigmap );
+    //         if (userConfigmap && this.settings.job.mountPoints) {
+    //             const vs: V1Volume[] = [
+    //                 {
+    //                     name: "datalake",
+    //                     cephfs: this.defJobVolume(userConfigmap,
+    //                                 userConfigmap.data?.["datalake.path"] ?? "/", true)
+    //                 },
+    //                 {
+    //                     name: "home",
+    //                     cephfs: this.defJobVolume(userConfigmap, 
+    //                         userConfigmap.data?.["persistent_home.path"] ?? "/", false)
+    //                 },
+    //                 {
+    //                     name: "shared-folder",
+    //                     cephfs: this.defJobVolume(userConfigmap, 
+    //                         userConfigmap.data?.["persistent_shared_folder.path"] ?? "/", false)
+    //                 }
+    //             ];
+    //             const vms: V1VolumeMount[] = [
+    //                 {
+    //                     name: "datalake",
+    //                     mountPath: this.settings.job.mountPoints.datalake
+    //                 },
+    //                 {
+    //                     name: "home",
+    //                     mountPath: this.settings.job.mountPoints.persistent_home
+    //                 },
+    //                 {
+    //                     name: "shared-folder",
+    //                     mountPath: this.settings.job.mountPoints.persistent_shared_folder
+    //                 }
+    //             ];
+    //             // Mount datasets
+    //             // const dirs: string[] = fs.readdirSync(this.settings.job.mountPoints.datasets)
+    //             //     .filter((f: any) => fs.statSync(path.join(this.settings.job.mountPoints?.datasets ?? "", f)).isDirectory());
+    //             // Read the list of datasets from file
+    //             let dirs: string[] | undefined = undefined;
+    //             if (this.settings.job.datasetsList && this.settings.job.datasetsList.length > 0) {
+    //                 let ids: string | undefined = undefined;
+    //                 try {
+    //                     ids = fs.readFileSync(this.settings.job.datasetsList, "ascii");
                             
-                    } catch (e) {
-                        //throw new ParameterException(
-                            this.logger.warn(`Cannot open the datasets list at ${this.settings.job.datasetsList}. If you don't intend to mount access any dataset please remove the "datasetsList" option in settings -> job`
-                            );
-                    }
-                    dirs = ids?.replaceAll((/ |\r\n|\n|\r/gm), "")
-                        ?.split(",").filter(e => e.length > 0);
-                }
+    //                 } catch (e) {
+    //                     //throw new ParameterException(
+    //                         this.logger.warn(`Cannot open the datasets list at ${this.settings.job.datasetsList}. If you don't intend to mount access any dataset please remove the "datasetsList" option in settings -> job`
+    //                         );
+    //                 }
+    //                 dirs = ids?.replaceAll((/ |\r\n|\n|\r/gm), "")
+    //                     ?.split(",").filter(e => e.length > 0);
+    //             }
 
-                const pt: string | undefined = userConfigmap.data?.["datasets.path"];
-                if (pt) {
-                    if (dirs) {
-                        if (dirs.length > 0) {
-                            for (const dir of dirs) {
-                                    vs.push({
-                                        name: dir,
-                                        cephfs: this.defJobVolume(userConfigmap,  path.join(pt, dir), true)
+    //             const pt: string | undefined = userConfigmap.data?.["datasets.path"];
+    //             if (pt) {
+    //                 if (dirs) {
+    //                     if (dirs.length > 0) {
+    //                         for (const dir of dirs) {
+    //                                 vs.push({
+    //                                     name: dir,
+    //                                     cephfs: this.defJobVolume(userConfigmap,  path.join(pt, dir), true)
 
-                                    });
-                                    vms.push({
-                                        name: dir,
-                                        mountPath: path.join(this.settings.job.mountPoints.datasets, dir)
-                                    });
-                            }
-                        } else {
-                            this.logger.warn("Empty 'datasets.txt', no dataset will be mounted");
-                        }
-                    } else {
-                        this.logger.warn("The list of datasets to be mounted is empty. If this is not by design, please ensure that the path defined in settings for \"datasetsList\" is correct, and the file has the correct format/not empty.")   
-                    }
-                } else {
-                    throw new ParameterException(`Missing 'datasets.path' entry in user configmap '${this.settings.job.userConfigmap}'`);
-                }
-                return [vs, vms];
-            } 
-        }
-        return [undefined, undefined];
-    }
+    //                                 });
+    //                                 vms.push({
+    //                                     name: dir,
+    //                                     mountPath: path.join(this.settings.job.mountPoints.datasets, dir)
+    //                                 });
+    //                         }
+    //                     } else {
+    //                         this.logger.warn("Empty 'datasets.txt', no dataset will be mounted");
+    //                     }
+    //                 } else {
+    //                     this.logger.warn("The list of datasets to be mounted is empty. If this is not by design, please ensure that the path defined in settings for \"datasetsList\" is correct, and the file has the correct format/not empty.")   
+    //                 }
+    //             } else {
+    //                 throw new ParameterException(`Missing 'datasets.path' entry in user configmap '${this.settings.job.userConfigmap}'`);
+    //             }
+    //             return [vs, vms];
+    //         } 
+    //     }
+    //     return [undefined, undefined];
+    // }
 
     protected defJobVolume(userConfigmap: V1ConfigMap, path: string, readOnly: boolean): V1CephFSVolumeSource {
         const monitors: string[] =  userConfigmap.data?.["ceph.monitors"]?.split(",") 

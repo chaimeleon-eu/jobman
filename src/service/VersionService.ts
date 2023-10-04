@@ -7,7 +7,7 @@ import { NewVersion, Settings } from "../model/Settings.js";
 export default class VersionService {
 
     protected static ERROR_MSG = (newVersion: string | null | undefined, errorMsg: string) => 
-        `\nError trying to obtain the new version value from ${newVersion}: ${errorMsg}\n`;
+        `\nError trying to read the new version value from '${newVersion}': ${errorMsg}\n`;
 
     private newVersion: NewVersion | null | undefined;
 

@@ -25,6 +25,11 @@ export enum KubeConfigType {
     file = "file"
 }
 
+export enum AnnotationType {
+    string = "string", 
+    env = "env"
+}
+
 export interface Affinity {
 
     cpu: string;
@@ -38,13 +43,13 @@ export interface Resources {
 
 }
 
-export interface MountPoints {
-    datalake: string,
-    persistent_home: string,
-    persistent_shared_folder: string;
-    datasets: string;
+// export interface MountPoints {
+//     datalake: string,
+//     persistent_home: string,
+//     persistent_shared_folder: string;
+//     datasets: string;
 
-}
+// }
 
 export interface SecurityContext {
     runAsUser?: number;
@@ -53,14 +58,21 @@ export interface SecurityContext {
     supplementalGroups?: Array<number>;
 }
 
+export interface Annotation {
+    key: string;
+    value: string;
+    valueType: AnnotationType;
+}
+
 export interface Job {
-    datasetsList?: string;
+    annotations?: Annotation[] | null;
+    //datasetsList?: string | null;
     defaultImage?: string;
     imagePrefix?: string | null;
     userConfigmap: string | null | undefined,
     priorityClassName?: string | null;
     securityContext?: SecurityContext | null;
-    mountPoints?: MountPoints;
+    //mountPoints?: MountPoints;
     //affinity: Affinity;
     resources: Resources;
 }
