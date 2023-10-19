@@ -24,6 +24,7 @@ export enum Cmd {
 export class Main {
 
     public static readonly USAGE_FILE: string = "usage.md";
+    public static readonly EXAMPLES_FILE: string = "examples.md";
 
     protected args: string[];
 
@@ -34,6 +35,7 @@ export class Main {
     public run(): number {
         if (this.args.length <= 2) {
             this.printV();
+            this.printExamples();
             return 0;
         }
         
@@ -41,6 +43,7 @@ export class Main {
         const cmdArg: string | undefined = argsTmp[0]?.toLowerCase();
         if (!cmdArg) {
             this.printV();
+            this.printExamples();
             return 0;
         }
         switch (cmdArg) {
@@ -171,7 +174,7 @@ export class Main {
             });
     }
     
-    protected printH() {
+    protected printH(): void  {
         marked.setOptions({
             // Define custom renderer
             renderer: new TerminalRenderer()
@@ -179,8 +182,16 @@ export class Main {
         console.log(marked(fs.readFileSync(path.join(path.dirname(Util.getDirName()), Main.USAGE_FILE), {encoding: "ascii", flag: "r" })));
     }
     
-    protected printV() {
+    protected printV(): void {
         console.info(this.getV());
+    }
+
+    protected printExamples(): void {
+        marked.setOptions({
+            // Define custom renderer
+            renderer: new TerminalRenderer()
+          });
+        console.log(marked(fs.readFileSync(path.join(path.dirname(Util.getDirName()), Main.EXAMPLES_FILE), {encoding: "ascii", flag: "r" })));
     }
     
     public getV(): string {

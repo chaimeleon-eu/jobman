@@ -80,7 +80,7 @@ export interface Job {
 export interface KubeConfigLocal {
 
     type: KubeConfigType;
-    file?: string | null | undefined;
+    file?: string | null;
 }
 
 export interface HarborConfig {
