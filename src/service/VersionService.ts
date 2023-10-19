@@ -7,7 +7,7 @@ import { NewVersion, Settings } from "../model/Settings.js";
 export default class VersionService {
 
     protected static ERROR_MSG = (newVersion: string | null | undefined, errorMsg: string) => 
-        `\nError trying to obtain the new version value from ${newVersion}: ${errorMsg}\n`;
+        `\nError trying to read the new version value from '${newVersion}': ${errorMsg}\n`;
 
     private newVersion: NewVersion | null | undefined;
 
@@ -59,7 +59,8 @@ export default class VersionService {
                                             const cVer: string | undefined = process.env["npm_package_version"];
                                             const newVer: string | undefined = pkgObj["version"];
                                             if (newVer) {
-                                                const msg = cVer?.toLowerCase()?.localeCompare(newVer.toLowerCase()) ?
+                                                const comp: number | undefined = cVer?.toLowerCase()?.localeCompare(newVer.toLowerCase());
+                                                const msg = comp && comp < 0 ?
                                                     `\nA new version  of jobman, ${newVer}, is available.\n${this.newVersion?.customMessage ?? ""}\n` : null;
                                                 resolve(msg);
                                             } else {

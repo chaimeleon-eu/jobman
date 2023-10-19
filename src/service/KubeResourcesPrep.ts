@@ -1,4 +1,4 @@
-import { Settings, Resources, KubeResources } from "../model/Settings.js";
+import { Settings, Resources, KubeResourcesFlavor } from "../model/Settings.js";
 import fs from "node:fs";
 import KubeResourceException from "../model/exception/KubeResourceException.js";
 
@@ -32,17 +32,17 @@ export default class KubeResourcesPrep {
         }
     }
 
-    public static getKubeResources(settings: Settings, cmd?: string): KubeResources {
-        let tmp: KubeResources | undefined = undefined;
+    public static getKubeResources(settings: Settings, cmd?: string): KubeResourcesFlavor {
+        let tmp: KubeResourcesFlavor | undefined = undefined;
         if (cmd) {
             const json: object = this.toJsonString(cmd); 
             if (json) {
-                tmp = json as KubeResources;
+                tmp = json as KubeResourcesFlavor;
             } else if (fs.existsSync(cmd) && fs.lstatSync(cmd).isFile()) {
-                tmp = JSON.parse(fs.readFileSync(cmd, "utf8")) as KubeResources;
+                tmp = JSON.parse(fs.readFileSync(cmd, "utf8")) as KubeResourcesFlavor;
             } else {
                 const resources: Resources | undefined = settings.job.resources; 
-                tmp = resources?.predefined.find(e => e.name === cmd);
+                tmp = resources?.predefined?.find(e => e.name === cmd);
                 if (!tmp) {
                     throw new KubeResourceException(this.CMD_NOT_FOUND, 
                         `Unable to find a predefined resources flavor with the name '${cmd}'`);
@@ -54,7 +54,7 @@ export default class KubeResourcesPrep {
         } else {
             const resources: Resources | undefined = settings.job.resources;
             if (resources?.default) {
-                tmp = resources.predefined.find(e => e.name === resources.default);
+                tmp = resources.predefined?.find(e => e.name === resources.default);
                 if (!tmp) {
                     throw new KubeResourceException(this.DEFAULT_NOT_FOUND, `A default predefined resources flavor has been set in the settings, but the application cannot find an entry with the name '${resources?.default}' in the list of predefined resources flavors.`);
                 }
