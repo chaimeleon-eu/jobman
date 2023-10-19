@@ -1,6 +1,6 @@
 
 export enum KubeOpReturnStatus {
-    Error, Success, Unknown
+    Error, Success, Unknown, Warning
 }
 
 export class KubeOpReturn<Type> {
@@ -18,6 +18,10 @@ export class KubeOpReturn<Type> {
 
     public isOk(): boolean {
         return this.status === KubeOpReturnStatus.Success;
+    }
+
+    public isWarning(): boolean {
+        return this.status === KubeOpReturnStatus.Warning;
     }
 
 }

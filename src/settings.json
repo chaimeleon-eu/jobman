@@ -7,23 +7,16 @@
         "gpuResources": [ ]
     },
     "job": {
-        "datasetsList": "datasets.txt",
+        "annotations": null,
         "defaultImage": null,
         "imagePrefix": null,
         "userConfigmap": null,
-        "datasetsEnvVar": "CHAIMELEON_DATASETS",
         "priorityClassName": null,
         "securityContext": {
             "runAsUser": 0,
             "runAsGroup": 0,
             "fsGroup": 0,
             "supplementalGroups": []
-        },
-        "mountPoints": {
-            "datalake": "none",
-            "persistent_home": "none",
-            "persistent_shared_folder": "none",
-            "datasets": "none"
         },
         "resources": {
             "default": null,

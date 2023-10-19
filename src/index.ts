@@ -17,13 +17,14 @@ import VersionService from './service/VersionService.js';
 const ARGS_PARSING_ERROR_MSG = "Error parsing the arguments, please check the help by passing -h/--help as first arg of the application.";
 
 export enum Cmd {
-    Queue, Images, ImageDetails, Submit, List, Details, Log, Delete
+    Queue, Images, ImageDetails, Submit, List, Details, Log, Delete, ResourcesFlavors
 }
 
 
 export class Main {
 
     public static readonly USAGE_FILE: string = "usage.md";
+    public static readonly EXAMPLES_FILE: string = "examples.md";
 
     protected args: string[];
 
@@ -34,6 +35,7 @@ export class Main {
     public run(): number {
         if (this.args.length <= 2) {
             this.printV();
+            this.printExamples();
             return 0;
         }
         
@@ -41,6 +43,7 @@ export class Main {
         const cmdArg: string | undefined = argsTmp[0]?.toLowerCase();
         if (!cmdArg) {
             this.printV();
+            this.printExamples();
             return 0;
         }
         switch (cmdArg) {
@@ -141,6 +144,7 @@ export class Main {
                         throw new ParameterException(`Please specify the job name for the '${cmdArg}' command, or the "--all" flag (to remove all your jobs).`);
                 break;
             }
+            case "resources-flavors": this.execCmd(Cmd.ResourcesFlavors, sp, {}); break;
             default: throw new ParameterException(`Unknown command '${cmdArg}'`);
         }
     }
@@ -164,12 +168,13 @@ export class Main {
                     case Cmd.Details: ds.details(payload); break;
                     case Cmd.Log: ds.log(payload); break;
                     case Cmd.Delete: ds.delete(payload); break;
+                    case Cmd.ResourcesFlavors: ds.resourcesFlavors(); break;
                     default: console.error(ARGS_PARSING_ERROR_MSG);
                 }
             });
     }
     
-    protected printH() {
+    protected printH(): void  {
         marked.setOptions({
             // Define custom renderer
             renderer: new TerminalRenderer()
@@ -177,8 +182,16 @@ export class Main {
         console.log(marked(fs.readFileSync(path.join(path.dirname(Util.getDirName()), Main.USAGE_FILE), {encoding: "ascii", flag: "r" })));
     }
     
-    protected printV() {
+    protected printV(): void {
         console.info(this.getV());
+    }
+
+    protected printExamples(): void {
+        marked.setOptions({
+            // Define custom renderer
+            renderer: new TerminalRenderer()
+          });
+        console.log(marked(fs.readFileSync(path.join(path.dirname(Util.getDirName()), Main.EXAMPLES_FILE), {encoding: "ascii", flag: "r" })));
     }
     
     public getV(): string {
