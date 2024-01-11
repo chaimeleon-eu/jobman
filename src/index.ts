@@ -87,7 +87,8 @@ export class Main {
                             image: { type: "string", short: "i" },
                             "resources-flavor": { type: "string", short: "r" },
                             command: { type: "boolean", short: "c", default: false },
-                            "dry-run": { type: "boolean", default: false }
+                            "dry-run": { type: "boolean", default: false },
+                            annotations: {type: "string", multiple: false, short: "a"}
                         }
                     });
                 this.execCmd(Cmd.Submit, sp, {
@@ -95,7 +96,8 @@ export class Main {
                         resources: values["resources-flavor"],
                         commandArgs: cmdArgs.slice(cmdPos + 1, cmdArgs.length),
                         command: values.command,
-                        dryRun: values["dry-run"]
+                        dryRun: values["dry-run"],
+                        annotations: values["annotations"]
                     });
                 // } else {
                 //     throw new ParameterException("Missing container command separator '--'. It is needed to separate jobman's args and the actual command  passed to the container.");

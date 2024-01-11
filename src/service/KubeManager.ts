@@ -125,7 +125,8 @@ export default class KubeManager {
             // } else {            
             //console.log(`Parameters sent to the job's container: ${JSON.stringify(props.command)}`);
             const kr: KubeResourcesFlavor = KubeResourcesPrep.getKubeResources(this.settings, props.resources);
-            const jn: string = props.jobName ?? `jobman-${uuidv4()}`;
+            const uuid: string = uuidv4()
+            const jn: string = props.jobName ?? `jobman-${uuid}`;
             const imageNm: string | undefined = props.image ?? this.settings.job.defaultImage;
             if (!imageNm || imageNm.length === 0) {
                 throw new ParameterException(
@@ -136,7 +137,7 @@ export default class KubeManager {
             //console.log("Preparing volumes...");
             //const [volumes, volumeMounts] = await this.prepareJobVolumes();
             const job: V1Job = new V1Job();
-            const annotations = this.getAnnotations(kr);
+            const annotations = this.getAnnotations(kr, props);
             job.metadata = {
                 name: jn,
                 namespace: this.getNamespace(),
@@ -167,7 +168,7 @@ export default class KubeManager {
                         //...volumes && {volumes},
                         containers: [
                             {
-                                name: `container-${uuidv4()}`,
+                                name: `container-${uuid}`,
                                 image,
                                 ...command && {command},
                                 ...args && {args},
@@ -175,23 +176,7 @@ export default class KubeManager {
                                 resources: {...new V1ResourceRequirements(), ...kr.resources}
                             }
                         ],
-                        restartPolicy: "Never",
-                        // affinity: {
-                        //     nodeAffinity: {
-                        //         requiredDuringSchedulingIgnoredDuringExecution: {
-                        //             nodeSelectorTerms:[
-                        //                 {
-                        //                     matchExpressions: [
-                        //                         {
-                        //                             key: props.gpu ? this.settings.job.affinity.gpu : this.settings.job.affinity.cpu,
-                        //                             operator: "Exist"
-                        //                         }
-                        //                     ]
-                        //                 }
-                        //             ]
-                        //         }
-                        //     }
-                        // }
+                        restartPolicy: "Never"
                     }
                 }
 
@@ -389,7 +374,7 @@ export default class KubeManager {
 
     }
 
-    protected getAnnotations(kr: KubeResourcesFlavor): { [key: string]: string; } | null {
+    protected getAnnotations(kr: KubeResourcesFlavor, props: SubmitProps): { [key: string]: string; } | null {
 
         const r = Object.create(null);
         if (this.settings.job.resources.label) {
@@ -407,6 +392,9 @@ export default class KubeManager {
                     default: throw new UnhandledValueException(`Annotation type '${a.valueType}' not handled for key '${a.key}' and value '${a.value}`);
                 }
             }
+        }
+        if (props.annotations) {
+                Object.assign(r, JSON.parse(props.annotations));   
         }
         return Object.keys(r).length > 0 ? r : null;
     } 
