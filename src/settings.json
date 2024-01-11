@@ -27,7 +27,8 @@
     "newVersion": {
         "repository": null,
         "packageJsonPath": null,
-        "customMessage": null
+        "customMessage": null,
+        "check": "24h"
     },
     "kubeConfig": {
         "type": "file",
