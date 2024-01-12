@@ -1,27 +1,34 @@
 import tar from "tar-stream";
-import fs, { ReadStream } from "node:fs";
+import fs from "node:fs";
 import zlib from "node:zlib";
 import { homedir } from 'os';
 import path from 'path';
 
-import { NewVersion, Settings } from "../model/Settings.js";
+import { NewVersion } from "../model/Settings.js";
 import UnhandledValueException from "../model/exception/UnhandledValueException.js";
 import LastUpdateCheck from "../model/LastUpdateCheck.js";
+import { Readable } from "node:stream";
 
 export default class VersionService {
 
-    protected static ERROR_MSG = (newVersion: string | null | undefined, errorMsg: string) => 
+    public static ERROR_MSG = (newVersion: string | null | undefined, errorMsg: string) => 
         `\nError trying to read the new version value from '${newVersion}': ${errorMsg}\n`;
+
+    public static NEW_VER_AVAILABLE = (v: string, customMessage: string) => 
+        `\nA new version  of jobman, ${v}, is available.\n${customMessage}\n`;
+
 
     public static USER_HOME_PATH = ".jobman/last_update_check.json";
 
-    private newVersion: NewVersion | null | undefined;
+    protected newVersion: NewVersion | null | undefined;
 
-    constructor(settings: Settings) {
-        this.newVersion = settings.newVersion;
+    constructor(newVersion: NewVersion | null | undefined) {
+        this.newVersion = newVersion;
     }
 
-    private getAfterDate(): number {
+    protected getCurrentVer(): string | undefined { return process.env["npm_package_version"]; }
+
+    protected getAfterDate(): number {
         const checkAfter: string | undefined | null = this.newVersion?.check?.toLowerCase();
         if (checkAfter) {
             if (checkAfter.endsWith("h")) {
@@ -41,10 +48,18 @@ export default class VersionService {
 
     protected compareNewVer(newVer: string | null): string | null {
         if (newVer) {
-            const cVer: string | undefined = process.env["npm_package_version"];
-            const comp: number | undefined = cVer?.toLowerCase()?.localeCompare(newVer.toLowerCase());
-            return comp && comp < 0 ?
-                `\nA new version  of jobman, ${newVer}, is available.\n${this.newVersion?.customMessage ?? ""}\n` : null;
+            const cVer: string | undefined = this.getCurrentVer();
+            if (cVer) {
+                const newVerN = Number(newVer.replace(/[^0-9]/g, ''));
+                const cVerN = Number(cVer.replace(/[^0-9]/g, ''));
+                //const comp: number | undefined = cVer?.toLowerCase()?.localeCompare(newVer.toLowerCase());
+                return newVerN >  cVerN ?
+                    VersionService.NEW_VER_AVAILABLE(newVer, this.newVersion?.customMessage ?? "") : null;
+
+            } else {
+                console.error("[ERROR] Unable to get app's version.");
+                return null;
+            }
         } else {
             return null
         }
@@ -67,6 +82,10 @@ export default class VersionService {
             console.error("[ERROR] Cannot write the date of the last check for an update: ", e);
         }
 
+    }
+
+    protected getReadStream(path: string): Readable { 
+        return fs.createReadStream(path);
     }
 
     protected checkTarGz(resolve: Function, reject: Function) {
@@ -132,7 +151,7 @@ export default class VersionService {
                     }
                 });
                 if (this.newVersion?.repository) {
-                    const stream: ReadStream = fs.createReadStream(this.newVersion?.repository);
+                    const stream: Readable = this.getReadStream(this.newVersion?.repository);
                     stream.on("error", 
                         (e: Error) => reject(VersionService.ERROR_MSG(this.newVersion?.repository, e.message)));
                     stream.pipe(zlib.createGunzip())
@@ -150,20 +169,24 @@ export default class VersionService {
         }
     }
 
+    protected getLastUpdateCheck(): LastUpdateCheck | null {
+        return JSON.parse(fs.readFileSync(this.getPathLastUpdateCheck(), {encoding: "ascii"})) as LastUpdateCheck;//Number(fs.readFileSync(uH, {encoding: "ascii"}));
+    }
+
     public check(): Promise<string | null> {
         const checkAfter: number = this.getAfterDate();
         // only check for a new version if 
         let luc: LastUpdateCheck | null = null;
         let lastCheck = 0;
-        const uH: string = this.getPathLastUpdateCheck();
         try {
-            luc = JSON.parse(fs.readFileSync(uH, {encoding: "ascii"})) as LastUpdateCheck;//Number(fs.readFileSync(uH, {encoding: "ascii"}));
-            lastCheck = luc.lastCheck;
+            luc = this.getLastUpdateCheck();
+            lastCheck = luc?.lastCheck ?? 0;
         } catch (e) {
             //console.debug(e);
         }
 
         if (Date.now() > checkAfter + lastCheck) {
+            console.log("check");
             return new Promise<string | null>((resolve, reject) => {
                 if (this.newVersion?.repository) {
                     if (this.newVersion.packageJsonPath && this.newVersion.repository.toLowerCase().endsWith("tar.gz")) {
@@ -176,6 +199,7 @@ export default class VersionService {
                 }
             });
         } else {
+            console.log("not check");
             return Promise.resolve(this.compareNewVer(luc?.remoteVersion ?? null));
         }
     }

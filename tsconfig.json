@@ -32,8 +32,7 @@
           "checkJs": true,
           "resolveJsonModule": true,
           "strictPropertyInitialization": false,
-          "importsNotUsedAsValues": "preserve",
-          "ignoreDeprecations": "5.0"
+          "importsNotUsedAsValues": "preserve"
         },
         "compileOnSave": true
   }

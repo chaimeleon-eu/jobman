@@ -154,7 +154,7 @@ export class Main {
     protected execCmd(cmd: Cmd, sp: string | null, payload: KubeManagerProps): void { 
         const s: Settings = new SettingsManager(sp).settings;
         // Check for new version
-        new VersionService(s)
+        new VersionService(s.newVersion)
             .check()
             .then(msg => msg ? console.log(msg) : () => {})
             .catch(errMesage => console.error(errMesage))
