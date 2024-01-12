@@ -173,25 +173,13 @@ When you need more details of a specific job, use the **details** command follow
 
 ```jobman details -j <job_name>```
 
-## Data (CHAIMELEON setup only)
+## Manual release 
 
-In CHAIMELEON, we use a two step setup for our users who wish to launch heavy computational workloads.
-First, they have to launch an application through KubeApps.
-Let's call it a remote development deployment.
-It is a basic GUI environment with some preinstalled packages (such as python).
-To connect to it, the users have to use Guacamole, a clientless remote desktop gateway accessible through a browser.
-Guacamole allows uploads, but no downloads, therefore the necessary external source code and/or additional files can be added to the remote development deployment.
-The uploaded material can be edited/used directly on the remote.
-For the actual execution of algorithms, the users should employ **jobman**, which was developed for launching heavy computational workloads as Kubernetes jobs.
-The remote development deployment is not meant to do the heavy lifting, it's for editing code, maybe some light runs to see if the code actually works. 
+Create a jobman deployment without using an actual package:
 
-When enabled, **jobman** mounts the following directories in a job's container:
+- pack it as full distributon including source using (with jobman being the root with all files you want to distribute):
+`(export V=$(cat jobman/package.json | jq -r '.version') &&  npm run --prefix jobman build && tar -czvf jobman-${V}.tar.gz jobman)`
 
-- __/home/chaimeleon/persistent-home__: your private folder that stores the data across executions of the various tools in the Kubernetes cluster
-- __/home/chaimeleon/persistent-shared-folder__: the shared folder for all users, when you need to share (read, or read-write) data with the rest of the users on the platform
-- __/home/chaimeleon/datasets/*__: the directory containing the mounted datasets
-
-These folders' content and the paths themselves are exactly the same as they are on each user's remote development deployment. 
-
-
+- only the dist necessary to run teh app
+`(export V=$(cat jobman/package.json | jq -r '.version') && npm run --prefix jobman build && find jobman \( -name \bin -o -name \dist -o -name \*.md  -o -name node_modules \) -print0 | xargs -0 tar -cvzf jobman-${V}.tar.gz )`
 
