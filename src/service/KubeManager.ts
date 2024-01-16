@@ -302,6 +302,8 @@ export default class KubeManager {
         try {
             if (props.jobName) {
                 const podName: string | undefined =  (await this.getJobPodInfo(props.jobName))?.metadata?.name;
+
+                //console.log((await this.k8sApi.readNamespacedJob(props.jobName, this.getNamespace())).body.status?.conditions);
                 if (podName) {
                     const ns: string = this.getNamespace();
                     console.log(`Getting log for pod '${podName}', user '${this.getUsername()}' in namespace '${ns}'`);

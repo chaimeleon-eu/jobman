@@ -186,7 +186,6 @@ export default class VersionService {
         }
 
         if (Date.now() > checkAfter + lastCheck) {
-            console.log("check");
             return new Promise<string | null>((resolve, reject) => {
                 if (this.newVersion?.repository) {
                     if (this.newVersion.packageJsonPath && this.newVersion.repository.toLowerCase().endsWith("tar.gz")) {
@@ -199,7 +198,6 @@ export default class VersionService {
                 }
             });
         } else {
-            console.log("not check");
             return Promise.resolve(this.compareNewVer(luc?.remoteVersion ?? null));
         }
     }

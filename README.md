@@ -155,11 +155,11 @@ This command
 
 ### Get logs
 
-If you want to get the Kubernetes logs for a specific job, you can use the **log** command that requires the -j/--job-name argument followed by the job name.
+If you want to get the Kubernetes logs for a specific job, you can use the **logs** command that requires the -j/--job-name argument followed by the job name.
 To get the job name, check the output of the **submit** command or call **list**.
 
 
-```jobman log -j <job_name>```
+```jobman logs -j <job_name>```
 
 ### Delete a job
 
@@ -175,11 +175,11 @@ When you need more details of a specific job, use the **details** command follow
 
 ## Manual release 
 
-Create a jobman deployment without using an actual package:
+Create a jobman deployment without using generating an actual npm package:
 
-- pack it as full distributon including source using (with jobman being the root with all files you want to distribute):
-`(export V=$(cat jobman/package.json | jq -r '.version') &&  npm run --prefix jobman build && tar -czvf jobman-${V}.tar.gz jobman)`
+- pack it as full distribution, including the source code (with jobman being the root with all files you want to distribute):
+`( export V=$(cat jobman/package.json | jq -r '.version') &&  npm run --prefix jobman build && tar -czvf jobman-${V}-full.tar.gz jobman )`
 
-- only the dist necessary to run teh app
-`(export V=$(cat jobman/package.json | jq -r '.version') && npm run --prefix jobman build && find jobman \( -name \bin -o -name \dist -o -name \*.md  -o -name node_modules \) -print0 | xargs -0 tar -cvzf jobman-${V}.tar.gz )`
+- only the dist necessary to run the app
+`( export V=$(cat jobman/package.json | jq -r '.version') && npm run --prefix jobman build && find jobman \( -name \bin -o -name \dist -o -name \*.md  -o -name node_modules -o -name \package.json \) -print0 | xargs -0 tar -cvzf jobman-${V}-dist.tar.gz )`
 

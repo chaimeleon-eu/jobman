@@ -120,7 +120,7 @@ export class Main {
                     this.execCmd(Cmd.Details, sp, { jobName: dv["job-name"] }); 
                 break;
             }
-            case "log": {
+            case "logs": {
                     const lv = parseArgs({ args: cmdArgs, options: {
                         "job-name": { type: "string", short: "j" }
                     }});

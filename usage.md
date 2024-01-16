@@ -14,7 +14,7 @@ jobman [`<jobman_options>`] [`<command>`] [`<command_options>`]
     submit:  submits a job to Kubernetes
     list:  lists all existing jobs, including those that ended (successfully or not)
     details:  displays the details of a specific, existing job; it outputs a JSON with all the information held by Kubernetes about a specific job, including its detailed status and  information about the underlying pod
-    log:  shows the log of a specific, existing job
+    logs:  shows the log of a specific, existing job
     delete:  removes a specific, existing job
     resources-flavors: lists the predefined resources flavors available in the application's settings files
 
@@ -33,7 +33,7 @@ jobman [`<jobman_options>`] [`<command>`] [`<command_options>`]
 `<command_options>` for the **details** command can be:
     -j/--job-name <job_name>:  required; the name of the job for which you want to get the details; 
     
-`<command_options>` for the **log** command can be:
+`<command_options>` for the **logs** command can be:
     -j/--job-name <job_name>:  required; the name of the job for which you want to pull the log
 
 `<command_options>` for the **delete** command can be:
