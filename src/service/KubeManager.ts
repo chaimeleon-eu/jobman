@@ -303,10 +303,11 @@ export default class KubeManager {
             if (props.jobName) {
                 const podName: string | undefined =  (await this.getJobPodInfo(props.jobName))?.metadata?.name;
 
-                //console.log((await this.k8sApi.readNamespacedJob(props.jobName, this.getNamespace())).body.status?.conditions);
+                //console.dir((await this.k8sApi.readNamespacedJobStatus(props.jobName, this.getNamespace())).body.status);
                 if (podName) {
                     const ns: string = this.getNamespace();
                     console.log(`Getting log for pod '${podName}', user '${this.getUsername()}' in namespace '${ns}'`);
+                    //console.dir((await this.k8sCoreApi.readNamespacedPodStatus(podName, this.getNamespace())).body.status?.conditions);
                     const log: string = (await this.k8sCoreApi.readNamespacedPodLog(podName, ns)).body;
                     return new KubeOpReturn(KubeOpReturnStatus.Success, undefined, !log ? "<Empty Log>" :  log);
                 } else {

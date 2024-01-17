@@ -173,6 +173,31 @@ When you need more details of a specific job, use the **details** command follow
 
 ```jobman details -j <job_name>```
 
+## Ephemeral storage
+
+Jobman launches jobs on the Kubernetes platform.
+A job can have multiple pods, although jobman doesn't support that at the moment.
+Each pod can have multiple containers which again is not something that jobman can handle.
+During the execution, you will have access to ephemeral and (maybe) persistent storage.
+
+### Containers
+
+Please keep in mind that the actual storage available during a job execution is ephemeral, unless specifically stated (for instance network mounts like NFS or CEPH).
+Be sure to check which locations in the directory structure of the container are actually persistent before launching a workload and risk losing the whole outpuṫ.
+You may be able to retrieve data saved on the ephemeral storage, but it depends on the enacted Kubernetes policies (such as container removal operations for completed -- successfully or not -- jobs), therefore we strongly advise against this. 
+
+### Logs 
+
+We are also advising against relying on jobs' logs stored on the Kubernetes job itself (the console stdout and stderr is stored at container level and can be retrieved with the **logs** command).
+If you want to avoid losing access to the logs, be sure to store the console output on a non-ephemeral storage location.
+If you are interested why, please continue reading through the next paragraph. 
+
+Each time you launch a job, a container is created on a Kubernetes node.
+This container occupies not only CPU, RAM, and maybe GPU (if requested), but also disk space.
+Once the job execution finishes (successfully or not), the lowest execution unit (the container) frees up the CPU(s), RAM and GPU(s).
+The disk space is not released entirely, therefore each time a job ends, more disk space gets used.
+Kubernetes has an eviction policy which may remove the containers after a certain time or when the disk capacity 
+
 ## Manual release 
 
 Create a jobman deployment without using generating an actual npm package:
