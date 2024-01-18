@@ -10,6 +10,6 @@ Usage examples:
   jobman list
   jobman log -j job1
   jobman delete -j job1
-  jobman submit -i ubuntu-python:latest-gpu -r small-gpu -- nvidia-smi
+  jobman submit -i ubuntu-python:latest-cuda -r small-gpu -- nvidia-smi
 ```
 Type `jobman --help` to see a  list of supported commands and more.

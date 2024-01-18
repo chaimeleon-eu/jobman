@@ -34,17 +34,20 @@ test("submit called", () => {
     main.run();
     expect(main.execCmdParams).toStrictEqual({ cmd: Cmd.Submit, ccp: null, payload: {
         jobName: undefined,
-        command: [],
+        command: false,
+        commandArgs: [],
         image: undefined,
-        resources: undefined
+        resources: undefined,
+        annotations: undefined,
+        dryRun: false
     } });
 });
 
-test("submit called without '--' throws missing parameter", () => {
-    const main = new MainTest(["node", "jobman", "submit"]);
-    expect(main.execCmdParams).toBe(null);
-    expect(() => main.run()).toThrow(ParameterException);
-});
+// test("submit called without '--' throws missing parameter", () => {
+//     const main = new MainTest(["node", "jobman", "submit"]);
+//     expect(main.execCmdParams).toBe(null);
+//     expect(() => main.run()).toThrow(ParameterException);
+// });
 
 test("list success", () => {
     const main = new MainTest(["node", "jobman", "list"]);

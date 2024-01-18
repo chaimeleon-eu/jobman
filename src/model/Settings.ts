@@ -99,6 +99,7 @@ export interface NewVersion {
     repository?: string | null;
     packageJsonPath?: string | null;
     customMessage?: string | null;
+    check?: string | null;
 }
 
 export interface Settings {
