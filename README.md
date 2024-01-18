@@ -155,11 +155,11 @@ This command
 
 ### Get logs
 
-If you want to get the Kubernetes logs for a specific job, you can use the **log** command that requires the -j/--job-name argument followed by the job name.
+If you want to get the Kubernetes logs for a specific job, you can use the **logs** command that requires the -j/--job-name argument followed by the job name.
 To get the job name, check the output of the **submit** command or call **list**.
 
 
-```jobman log -j <job_name>```
+```jobman logs -j <job_name>```
 
 ### Delete a job
 
@@ -173,25 +173,38 @@ When you need more details of a specific job, use the **details** command follow
 
 ```jobman details -j <job_name>```
 
-## Data (CHAIMELEON setup only)
+## Ephemeral storage
 
-In CHAIMELEON, we use a two step setup for our users who wish to launch heavy computational workloads.
-First, they have to launch an application through KubeApps.
-Let's call it a remote development deployment.
-It is a basic GUI environment with some preinstalled packages (such as python).
-To connect to it, the users have to use Guacamole, a clientless remote desktop gateway accessible through a browser.
-Guacamole allows uploads, but no downloads, therefore the necessary external source code and/or additional files can be added to the remote development deployment.
-The uploaded material can be edited/used directly on the remote.
-For the actual execution of algorithms, the users should employ **jobman**, which was developed for launching heavy computational workloads as Kubernetes jobs.
-The remote development deployment is not meant to do the heavy lifting, it's for editing code, maybe some light runs to see if the code actually works. 
+Jobman launches jobs on the Kubernetes platform.
+A job can have multiple pods, although jobman doesn't support that at the moment.
+Each pod can have multiple containers which again is not something that jobman can handle.
+During the execution, you will have access to ephemeral and (maybe) persistent storage.
 
-When enabled, **jobman** mounts the following directories in a job's container:
+### Containers
 
-- __/home/chaimeleon/persistent-home__: your private folder that stores the data across executions of the various tools in the Kubernetes cluster
-- __/home/chaimeleon/persistent-shared-folder__: the shared folder for all users, when you need to share (read, or read-write) data with the rest of the users on the platform
-- __/home/chaimeleon/datasets/*__: the directory containing the mounted datasets
+Please keep in mind that the actual storage available during a job execution is ephemeral, unless specifically stated (for instance network mounts like NFS or CEPH).
+Be sure to check which locations in the directory structure of the container are actually persistent before launching a workload and risk losing the whole outpuṫ.
+You may be able to retrieve data saved on the ephemeral storage, but it depends on the enacted Kubernetes policies (such as container removal operations for completed -- successfully or not -- jobs), therefore we strongly advise against this. 
 
-These folders' content and the paths themselves are exactly the same as they are on each user's remote development deployment. 
+### Logs 
 
+We are also advising against relying on jobs' logs stored on the Kubernetes job itself (the console stdout and stderr is stored at container level and can be retrieved with the **logs** command).
+If you want to avoid losing access to the logs, be sure to store the console output on a non-ephemeral storage location.
+If you are interested why, please continue reading through the next paragraph. 
 
+Each time you launch a job, a container is created on a Kubernetes node.
+This container occupies not only CPU, RAM, and maybe GPU (if requested), but also disk space.
+Once the job execution finishes (successfully or not), the lowest execution unit (the container) frees up the CPU(s), RAM and GPU(s).
+The disk space is not released entirely, therefore each time a job ends, more disk space gets used.
+Kubernetes has an eviction policy which may remove the containers after a certain time or when the disk capacity 
+
+## Manual release 
+
+Create a jobman deployment without using generating an actual npm package:
+
+- pack it as full distribution, including the source code (with jobman being the root with all files you want to distribute):
+`( export V=$(cat jobman/package.json | jq -r '.version') &&  npm run --prefix jobman build && tar -czvf jobman-${V}-full.tar.gz jobman )`
+
+- only the dist necessary to run the app
+`( export V=$(cat jobman/package.json | jq -r '.version') && npm run --prefix jobman build && find jobman \( -name \bin -o -name \dist -o -name \*.md  -o -name node_modules -o -name \package.json \) -print0 | xargs -0 tar -cvzf jobman-${V}-dist.tar.gz )`
 

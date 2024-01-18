@@ -7,4 +7,5 @@ export default interface SubmitProps extends KubeManagerProps{
     commandArgs?: string[];
     command?: boolean;
     dryRun?: boolean;
+    annotations?:  string;
 }

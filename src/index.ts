@@ -87,7 +87,8 @@ export class Main {
                             image: { type: "string", short: "i" },
                             "resources-flavor": { type: "string", short: "r" },
                             command: { type: "boolean", short: "c", default: false },
-                            "dry-run": { type: "boolean", default: false }
+                            "dry-run": { type: "boolean", default: false },
+                            annotations: {type: "string", multiple: false, short: "a"}
                         }
                     });
                 this.execCmd(Cmd.Submit, sp, {
@@ -95,7 +96,8 @@ export class Main {
                         resources: values["resources-flavor"],
                         commandArgs: cmdArgs.slice(cmdPos + 1, cmdArgs.length),
                         command: values.command,
-                        dryRun: values["dry-run"]
+                        dryRun: values["dry-run"],
+                        annotations: values["annotations"]
                     });
                 // } else {
                 //     throw new ParameterException("Missing container command separator '--'. It is needed to separate jobman's args and the actual command  passed to the container.");
@@ -118,7 +120,7 @@ export class Main {
                     this.execCmd(Cmd.Details, sp, { jobName: dv["job-name"] }); 
                 break;
             }
-            case "log": {
+            case "logs": {
                     const lv = parseArgs({ args: cmdArgs, options: {
                         "job-name": { type: "string", short: "j" }
                     }});
@@ -152,7 +154,7 @@ export class Main {
     protected execCmd(cmd: Cmd, sp: string | null, payload: KubeManagerProps): void { 
         const s: Settings = new SettingsManager(sp).settings;
         // Check for new version
-        new VersionService(s)
+        new VersionService(s.newVersion)
             .check()
             .then(msg => msg ? console.log(msg) : () => {})
             .catch(errMesage => console.error(errMesage))

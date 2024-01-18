@@ -6,7 +6,6 @@
         "display": "Node 18 + ESM + Strict(est)",
         "compilerOptions": {
           "allowSyntheticDefaultImports": true,
-          "watch": false,
           "sourceMap": true,
            "outDir": "./dist/",
            "rootDir": "src",
@@ -30,10 +29,10 @@
           "noUncheckedIndexedAccess": true,
           "noUnusedLocals": true,
           "noUnusedParameters": false,
-          "importsNotUsedAsValues": "preserve",
           "checkJs": true,
           "resolveJsonModule": true,
-          "strictPropertyInitialization": false
+          "strictPropertyInitialization": false,
+          "importsNotUsedAsValues": "preserve"
         },
         "compileOnSave": true
   }
