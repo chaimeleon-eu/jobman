@@ -1,7 +1,7 @@
 
 export default class QueueResult {
     public id: string;
-    public flavor: string | undefined;
+    public label: string | undefined;
     public count: number;
     public cpu: string | undefined;
     public memory: string | undefined;

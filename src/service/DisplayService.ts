@@ -55,14 +55,14 @@ export default class DisplayService {
                             columns: [],
                             computedColumns:[
                                 {
-                                    name: "CPU/Memory/GPUs",
+                                    name: "CPUs/Memory/GPUs",
                                     maxLen: Math.floor(totalNoColsAvailable * 0.30),
                                     function: (row: QueueResult) => `${row.cpu ?? "-"}/${row.memory ?? "-"}/${row.gpu ?? "-"}`, 
                                 },
                                 {
                                     name: "Flavor",
                                     maxLen: Math.floor(totalNoColsAvailable * 0.50),
-                                    function: (row: QueueResult) => row.flavor ?? "<no label>"
+                                    function: (row: QueueResult) => row.label ?? "<no label>"
                                 },
                                 {
                                     name: "Jobs (total/yours)",

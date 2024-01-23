@@ -4,7 +4,7 @@ export default class QueueJob {
     name: string;
     creationDate: Date;
     resources: {
-        flavor: string;
+        label: string;
         requests?: {
             [key: string]: string;
         }
