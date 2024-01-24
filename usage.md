@@ -12,11 +12,11 @@ jobman [`<jobman_options>`] [`<command>`] [`<command_options>`]
     image-details:  obtains the associated description for an image on Harbor
     queue: lists information regarding the kubernetes jobs queue, grouped by flavors/requests
     submit:  submits a job to Kubernetes
-    list:  lists all existing jobs, including those that ended (successfully or not)
+    list:  lists all existing jobs, including those that ended (successfully or not); Please keep in mind that this command lists the job objects on the platform, it may happen that after deleting a job, its Kubernetes object might get deleted before its Kubernetes pod object, therefore the job won't appear in the list, but parts of it may still be available on the platform
     details:  displays the details of a specific, existing job; it outputs a JSON with all the information held by Kubernetes about a specific job, including its detailed status and  information about the underlying pod
     logs:  shows the log of a specific, existing job
-    delete:  removes a specific, existing job
-    resources-flavors: lists the predefined resources flavors available in the application's settings files
+    delete:  removes a specific, existing job; Please take into account that the job object itself may get deleted before its pod, therefore the job may not appear in the list command, but parts of it may be left on the platform
+    resources-flavors: lists the predefined resources flavors available in the application's settings file
 
 `<command_options>` for the **image-details** command can be:
     -i/--image <image_name>:  required; the image name which you want to get the description for from Harbor

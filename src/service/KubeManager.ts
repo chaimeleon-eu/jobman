@@ -71,16 +71,16 @@ export default class KubeManager {
                             }
                         }
 
-                        let flavor  = undefined;
+                        let label  = undefined;
                         let cnt: QueueResult | undefined = undefined;
                         let id: string | undefined = undefined;
                         let isUserJob = false;
                         if (j.namespace === this.getNamespace()) {
                             isUserJob = true;
                         }
-                        if (j.resources.flavor) {
-                            flavor = j.resources.flavor;
-                            id = flavor;
+                        if (j.resources.label) {
+                            label = j.resources.label;
+                            id = label;
                         } else {
                             //flavor = "<no label>";//`unk-${uuidv4()}`
                             id = `${cpu}/${memory}/${gpu}`;
@@ -95,7 +95,7 @@ export default class KubeManager {
                         } else {
                             result.set(id, {
                                 id,
-                                flavor,
+                                label,
                                 count: 1,
                                 cpu, memory, gpu,
                                 userJobsCnt: isUserJob ? 1 : 0
