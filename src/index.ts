@@ -120,6 +120,7 @@ export class Main {
                     this.execCmd(Cmd.Details, sp, { jobName: dv["job-name"] }); 
                 break;
             }
+            case "log": throw new ParameterException(`Please use 'logs' instead of 'log', the latter has been deprecated and is not accepted anymore.`); 
             case "logs": {
                     const lv = parseArgs({ args: cmdArgs, options: {
                         "job-name": { type: "string", short: "j" }

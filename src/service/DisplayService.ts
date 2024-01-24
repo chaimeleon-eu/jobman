@@ -55,19 +55,22 @@ export default class DisplayService {
                             columns: [],
                             computedColumns:[
                                 {
-                                    name: "CPU/Memory/GPUs",
+                                    name: "CPUs/Memory/GPUs",
                                     maxLen: Math.floor(totalNoColsAvailable * 0.30),
                                     function: (row: QueueResult) => `${row.cpu ?? "-"}/${row.memory ?? "-"}/${row.gpu ?? "-"}`, 
+                                    alignment: 'center'
                                 },
                                 {
                                     name: "Flavor",
                                     maxLen: Math.floor(totalNoColsAvailable * 0.50),
-                                    function: (row: QueueResult) => row.flavor ?? "<no label>"
+                                    function: (row: QueueResult) => row.label ?? "<no label>",
+                                    alignment: 'center'
                                 },
                                 {
                                     name: "Jobs (total/yours)",
                                     maxLen: Math.floor(totalNoColsAvailable * 0.20),
-                                    function: (row: QueueResult) => `${row.count}/${row.userJobsCnt}`
+                                    function: (row: QueueResult) => `${row.count}/${row.userJobsCnt}`,
+                                    alignment: 'center'
                                 }
                             ]
                         });
@@ -94,7 +97,8 @@ export default class DisplayService {
                           {
                             name: "name",
                             maxLen: Math.floor(totalNoColsAvailable * 0.25),
-                            title: "Image Name"
+                            title: "Image Name",
+                            alignment: 'left'
                           }
                         ],
                         computedColumns:[
@@ -102,6 +106,7 @@ export default class DisplayService {
                                 name: "Tags List",
                                 maxLen: Math.floor(totalNoColsAvailable * 0.75),
                                 function: (row: ImageDetails) => row.tags.join("  "), 
+                                alignment: 'left'
                             }
                         ]
                     });
@@ -147,12 +152,14 @@ export default class DisplayService {
                           {
                             name: "name",
                             maxLen: Math.floor(totalNoColsAvailable * 0.50),
-                            title: "Job Name"
+                            title: "Job Name",
+                            alignment: 'left'
                           },
                           {
                             name: "status",
                             maxLen: Math.floor(totalNoColsAvailable * 0.20),
-                            title: "Status"
+                            title: "Status",
+                            alignment: 'center'
                           }
                         ],
                         computedColumns:[
@@ -160,7 +167,8 @@ export default class DisplayService {
                                 name: "Launch Date",
                                 maxLen: Math.floor(totalNoColsAvailable * 0.30),
                                 function: (row: JobInfo) => new Intl.DateTimeFormat('en-GB', this.options)
-                                                .format(row.dateLaunched), 
+                                                .format(row.dateLaunched),
+                                alignment: 'center'
                             }
                         ]
                     });
@@ -203,24 +211,28 @@ export default class DisplayService {
                     {
                     name: "name",
                     maxLen: Math.floor(totalNoColsAvailable * 0.2),
-                    title: "Name"
+                    title: "Name",
+                    alignment: 'left'
                     },
                     {
                     name: "description",
                     maxLen: Math.floor(totalNoColsAvailable * 0.35),
-                    title: "Description"
+                    title: "Description",
+                    alignment: 'left'
                     }
                 ],
                 computedColumns:[
                     {
                         name: "CPU*",
                         maxLen: Math.floor(totalNoColsAvailable * 0.15),
-                        function: (row: KubeResourcesFlavor) => `${row.resources?.requests?.["cpu"] ?? "-"} / ${row.resources?.limits?.["cpu"] ?? "-"}`
+                        function: (row: KubeResourcesFlavor) => `${row.resources?.requests?.["cpu"] ?? "-"} / ${row.resources?.limits?.["cpu"] ?? "-"}`,
+                        alignment: 'center'
                     },
                     {
                         name: "Memory*",
                         maxLen: Math.floor(totalNoColsAvailable * 0.15),
-                        function: (row: KubeResourcesFlavor) => `${row.resources?.requests?.["memory"] ?? "-"} / ${row.resources?.limits?.["memory"] ?? "-"}`
+                        function: (row: KubeResourcesFlavor) => `${row.resources?.requests?.["memory"] ?? "-"} / ${row.resources?.limits?.["memory"] ?? "-"}`,
+                        alignment: 'center'
                     },
                     {
                         name: "GPU**",
@@ -228,7 +240,8 @@ export default class DisplayService {
                         function: (row: KubeResourcesFlavor) => 
                             `${row.resources?.requests?.["nvidia.com/gpu"] ?? "-"}`
                             + ` / ${row.resources?.requests?.["amd.com/gpu"] ?? "-"}`
-                            + ` / ${row.resources?.requests?.["intel.com/gpu"] ?? "-"}`
+                            + ` / ${row.resources?.requests?.["intel.com/gpu"] ?? "-"}`,
+                        alignment: 'center'
                     }
                 ]
             });
