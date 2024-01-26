@@ -252,40 +252,54 @@ export default class KubeManager {
     }
 
     public async images(): Promise<KubeOpReturn<ImageDetails[]>> {
-        const reposUrl = `${this.settings.harbor.url}/api/v2.0/projects/${this.settings.harbor.project}/repositories`;
+        const projsUrl = `${this.settings.harbor.url}/api/v2.0/projects`
+        const reposUrl = `${projsUrl}/${this.settings.harbor.project}/repositories`;
         console.log(`Getting repos from ${reposUrl}`);
         const agent = new https.Agent({
             rejectUnauthorized: false,
           });
-          
-        const response: Response = await this.fetchCustom(reposUrl, {agent});
+        
+        let pageNum = 1;
+        let reposCnt = 0;
+        const pageSize = 100;
         const result: ImageDetails[] = [];
-        if (response.ok) {
-            const prjRepos: HarborRepository[] = await response.json() as HarborRepository[];
-            for (const repo of prjRepos) {
-                // Get repo name, remove project name 
-                const name: string = repo.name.substring(repo.name.indexOf("/") + 1, repo.name.length);
-                const desc: string = repo.description;
-                const tags: string[] = [];
-                result.push({name, tags, desc})
-                
-                const artsUrl = `${reposUrl}/${name}/artifacts`;
-                const rArtifacts: Response = await this.fetchCustom(artsUrl, {agent});
-                if (rArtifacts.ok) {
-                    const arts: HarborRespositoryArtifact[] = await rArtifacts.json() as HarborRespositoryArtifact[];
-                    for (const art of arts ) {
-                        if (art.tags !== null)
-                            tags.push(...art.tags.map(t => t.name));
+        let error = false;
+        do {
+            const response: Response = await this.fetchCustom(`${reposUrl}?page=${pageNum}&page_size=${pageSize}`, {agent});
+            if (response.ok) {
+                const prjRepos: HarborRepository[] = await response.json() as HarborRepository[];
+                reposCnt = prjRepos.length;
+                for (const repo of prjRepos) {
+                    // Get repo name, remove project name 
+                    const name: string = repo.name.substring(repo.name.indexOf("/") + 1, repo.name.length);
+                    const desc: string = repo.description;
+                    const tags: string[] = [];
+                    result.push({name, tags, desc})
+                    
+                    const artsUrl = `${reposUrl}/${name}/artifacts`;
+                    const rArtifacts: Response = await this.fetchCustom(`${artsUrl}?page_size=${repo.artifact_count}`, {agent});
+                    if (rArtifacts.ok) {
+                        const arts: HarborRespositoryArtifact[] = await rArtifacts.json() as HarborRespositoryArtifact[];
+                        for (const art of arts ) {
+                            if (art.tags !== null)
+                                tags.push(...art.tags.map(t => t.name));
+                        }
+                    } else {
+                        console.warn(`Unable to load artifacts from ${artsUrl}`);
                     }
-                } else {
-                    console.warn(`Unable to load artifacts from ${artsUrl}`);
-                }
+                } 
+                ++pageNum;      
+            } else {
+                error = true;
+                console.error(`Unable to load repositories from '${reposUrl}?page=${pageNum}&page_size=${pageSize}', API responded with code '${response.statusText}' and message: ${JSON.stringify(await response.json())}`);
+                // If the first page fails, don't try again
+                break;
             }
-            return new KubeOpReturn(KubeOpReturnStatus.Success, response.statusText, result);
-        } else {
-            console.error(`Unable to load repositories from '${reposUrl}'`);
-        }
-        return new KubeOpReturn(KubeOpReturnStatus.Error, response.statusText, result);
+        } while (reposCnt === pageSize);
+        if (error)
+            return new KubeOpReturn(KubeOpReturnStatus.Error, `Unable to load repositories from '${reposUrl}`, result);
+        else
+            return new KubeOpReturn(KubeOpReturnStatus.Success, undefined, result);
     }
 
     public async details(props: DetailsProps): Promise<KubeOpReturn<V1Job | null>> {
