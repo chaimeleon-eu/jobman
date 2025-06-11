@@ -1,3 +1,6 @@
+## [IMPORTANT] The CHAIMELEON project has ended therefore this repository has been archived. Our work on Jobman will continue but in the context of the EUCAIM project, at https://github.com/EUCAIM/jobman.
+
+
 # jobman
 The Kubernetes job manager
 
